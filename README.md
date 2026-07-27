@@ -212,6 +212,22 @@ proportion to the video length and the Whisper model size. Videos above a
 configured maximum length are rejected with `400` rather than left to run into
 a timeout.
 
+**A logout without a usable refresh cookie still logs you out.**
+`POST /api/logout/` needs a valid access token, but it answers `200` and
+clears both cookies even when the refresh cookie is missing, damaged or
+already blacklisted. There is nothing left to invalidate in that case, and a
+user who asks to be logged out should end up logged out rather than stuck in
+a session that cannot be ended.
+
+**The Whisper model stays in memory.** The first transcription in a server
+process loads the model named by `WHISPER_MODEL` — `base` by default — and
+keeps it there for every request after it. Loading it per request would add
+several seconds to every quiz, so this is deliberate. The price is resident
+memory for the lifetime of the process: `base` holds 74 million parameters,
+which is roughly 300 MB as the 32-bit floats it is loaded as on a CPU. Each
+larger size multiplies that, `small` by about three and `medium` by about
+ten. Restart the server to release it.
+
 **Game progress is not stored.** The backend keeps quizzes and questions.
 How far a user got through a quiz lives in the frontend only, and is gone on
 reload.

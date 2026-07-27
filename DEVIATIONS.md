@@ -129,3 +129,23 @@ wird als Beschreibung gelesen, nicht als abschließende Aufzählung der
 Set-Cookie-Header. Rückbau: `ROTATE_REFRESH_TOKENS` auf False setzen; dann
 bleibt der Refresh-Token gültig und nur der Access-Cookie muss neu
 geschrieben werden.
+
+---
+
+## 2026-07-27 — WWW-Authenticate meldet ein nicht registriertes Schema
+
+Die Quizly-Checkliste (liegt lokal, nicht im Repo) verlangt
+„Authentifizierung soll mit JWT und HTTP-ONLY-COOKIES eingerichtet werden",
+und die Endpoint-Dokumentation kennt keinen Authorization-Header. DRF stuft
+ein 401 allerdings still auf 403 herunter, wenn die
+Authentication-Klasse in `authenticate_header()` nichts zurückgibt — der
+Rückgabewert muss also non-None bleiben, damit „nicht angemeldet" und
+„nicht berechtigt" unterscheidbar sind. Geerbt käme von SimpleJWT
+`Bearer realm="api"`; das fordert einen Client auf, genau den Header zu
+schicken, den der Vertrag ausschließt. Die Klasse gibt deshalb
+`Cookie realm="api"` zurück. Abweichung: `Cookie` ist kein bei der IANA
+registriertes Authentifizierungsschema, der Header ist damit formal nicht
+standardkonform. Praktisch wertet ihn niemand aus — das gelieferte Frontend
+liest `WWW-Authenticate` nie. Rückbau: auf `Bearer realm="api"`
+zurückstellen, sobald ein Client den Header interpretiert; der Statuscode
+bleibt davon unberührt, nur die Selbstauskunft ändert sich.
