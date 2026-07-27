@@ -7,6 +7,12 @@ downloads no model weights.
 quiz_payload() builds a model answer that passes validation unchanged.
 Every test that wants a rejected one starts from it and breaks exactly
 one rule, so what a test is about is the one line that differs.
+
+The endpoint tests share QuizEndpointTestCase. It creates two users
+with one quiz each, so "my quiz" and "somebody else's quiz" are both
+in the database of every test, and authenticates the client by setting
+the access cookie directly. Going through POST /api/login/ would make
+every quiz test depend on the login endpoint as well.
 """
 
 import json
@@ -15,7 +21,14 @@ import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
+from django.conf import settings
+from django.contrib.auth.models import User
+from django.test import Client, TestCase
+from django.urls import reverse
+from rest_framework_simplejwt.tokens import RefreshToken
+
 from quiz_app.constants import OPTIONS_PER_QUESTION, QUESTIONS_PER_QUIZ
+from quiz_app.models import Question, Quiz
 
 VIDEO_ID = "dQw4w9WgXcQ"
 
@@ -62,6 +75,43 @@ SOURCE_BYTES = b"fake-audio"
 WAV_BYTES = b"RIFF-fake-wav"
 
 ACCEPTED_DURATION_SECONDS = 120.0
+
+GENERATE_QUIZ_TARGET = "quiz_app.api.views.generate_quiz"
+
+VIEWS_LOGGER = "quiz_app.api.views"
+
+QUIZ_LIST_ROUTE = "quiz-list"
+
+QUIZ_DETAIL_ROUTE = "quiz-detail"
+
+USERNAME = "quizmaster"
+
+OTHER_USERNAME = "someone-else"
+
+PASSWORD = "correct-horse-battery"
+
+FOREIGN_TITLE = "A quiz of somebody else"
+
+MISSING_QUIZ_ID = 999_999
+
+QUIZ_FIELD_ORDER = [
+    "id",
+    "title",
+    "description",
+    "created_at",
+    "updated_at",
+    "video_url",
+    "questions",
+]
+
+QUESTION_FIELD_ORDER = [
+    "id",
+    "question_title",
+    "question_options",
+    "answer",
+    "created_at",
+    "updated_at",
+]
 
 
 def downloader_of(youtube_dl):
@@ -156,3 +206,63 @@ def as_fenced_json(payload, language=""):
 def gemini_response(text):
     """Return a stand-in for a Gemini response object."""
     return SimpleNamespace(text=text)
+
+
+def quiz_list_url():
+    """Return the URL of the quiz collection."""
+    return reverse(QUIZ_LIST_ROUTE)
+
+
+def quiz_detail_url(quiz_id):
+    """Return the URL of a single quiz."""
+    return reverse(QUIZ_DETAIL_ROUTE, args=[quiz_id])
+
+
+def create_user(username=USERNAME):
+    """Create an account the quiz endpoints can be called as."""
+    return User.objects.create_user(username=username, password=PASSWORD)
+
+
+def authenticate(client, user):
+    """Give a client the access cookie of a user."""
+    access_token = RefreshToken.for_user(user).access_token
+    client.cookies[settings.ACCESS_TOKEN_COOKIE_NAME] = str(access_token)
+
+
+def anonymous_client():
+    """Return a client that carries no cookie at all."""
+    return Client()
+
+
+def create_quiz(owner, **overrides):
+    """Store a quiz with a full set of questions for a user."""
+    fields = {
+        "title": QUIZ_TITLE,
+        "description": QUIZ_DESCRIPTION,
+        "video_url": VIDEO_URL,
+    }
+    fields.update(overrides)
+    quiz = Quiz.objects.create(owner=owner, **fields)
+    Question.objects.bulk_create(
+        [
+            Question(quiz=quiz, **question_payload(index))
+            for index in range(1, QUESTIONS_PER_QUIZ + 1)
+        ]
+    )
+    return quiz
+
+
+class QuizEndpointTestCase(TestCase):
+    """Two users, one quiz each, and a client logged in as the first."""
+
+    @classmethod
+    def setUpTestData(cls):
+        """Create both accounts and a quiz for each of them."""
+        cls.user = create_user()
+        cls.other_user = create_user(OTHER_USERNAME)
+        cls.quiz = create_quiz(cls.user)
+        cls.foreign_quiz = create_quiz(cls.other_user, title=FOREIGN_TITLE)
+
+    def setUp(self):
+        """Authenticate the shared client as the first user."""
+        authenticate(self.client, self.user)
