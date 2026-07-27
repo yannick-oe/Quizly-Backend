@@ -10,11 +10,14 @@ separately and is served as a static site.
 
 ## Project status
 
-Configuration and scaffolding are in place: environment-driven settings, DRF,
-SimpleJWT with token blacklisting, CORS, the `api/` package per app and the
-central routing. **The nine endpoints below are not implemented yet** — the
-app-level URL configs are still empty. The endpoint table describes the
-contract this backend is being built against.
+In place: environment-driven settings, DRF wired to cookie-based JWT
+authentication, SimpleJWT with token blacklisting, CORS, the `Quiz` and
+`Question` models with their migration, the Django admin, and the first two
+endpoints — `POST /api/register/` and `POST /api/login/`.
+
+**Not implemented yet:** `POST /api/logout/`, `POST /api/token/refresh/` and
+the five quiz endpoints. Their rows in the endpoint table below describe the
+contract this backend is being built against, not what it answers today.
 
 ## Requirements
 
@@ -70,7 +73,7 @@ Then migrate and run:
 
 ```bash
 python manage.py migrate
-python manage.py createsuperuser    # optional, for the admin
+python manage.py createsuperuser    # required for the admin, see below
 python manage.py runserver
 ```
 
@@ -131,6 +134,37 @@ The API has no CSRF protection. That is a deliberate decision, not an
 oversight; `SameSite=Lax` and an explicit `CORS_ALLOWED_ORIGINS` list are the
 countermeasures. The reasoning and the way back are recorded in
 [DEVIATIONS.md](DEVIATIONS.md). The Django admin keeps its CSRF protection.
+
+## Admin
+
+The Django admin is part of the deliverable, not an afterthought. It lives at
+`http://127.0.0.1:8000/admin/` and needs a superuser, so
+`python manage.py createsuperuser` is a required setup step rather than an
+optional one:
+
+```bash
+python manage.py createsuperuser
+```
+
+What is editable there:
+
+| Entry | What you can edit |
+|---|---|
+| **Quizzes** | Title, description, video URL and owner. The quiz's questions are edited inline on the same page. |
+| **Questions** | Registered separately as well, so a single question can be found and edited without opening its quiz. |
+
+Both lists are searchable and filterable; `created_at` and `updated_at` are
+read-only on both.
+
+Two rules the admin does not enforce, because they are enforced when a quiz is
+generated rather than on the model:
+
+- `question_options` holds exactly **four distinct** entries. The frontend
+  labels them A to D and has no label for a fifth.
+- `answer` is **character-for-character** one of those four options. The
+  frontend compares the option text it read back from the page against
+  `answer` with a strict equality check, so a stray leading space marks every
+  answer to that question wrong, silently and without an error.
 
 ## Development
 
