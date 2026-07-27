@@ -1,27 +1,49 @@
 """Django settings for the core project.
 
-See https://docs.djangoproject.com/en/6.0/ref/settings/ for the full
-list of available settings.
+Environment-specific values are read from the environment, with .env
+loaded on start; see .env.example for the variables this project uses.
 """
 
+import os
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+load_dotenv(BASE_DIR / ".env")
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
+ENV_TRUE_VALUES = ("1", "true", "yes", "on")
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = (
-    "django-insecure-553c=m*&ub-a!kxl0j$@we(-1my03b34$3_3ej7knw)tjfg$jw"
-)
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+def get_required_env(name):
+    """Return a required environment variable or fail loudly."""
+    value = os.getenv(name)
+    if not value:
+        raise ImproperlyConfigured(
+            f"Environment variable {name} is missing or empty. "
+            "Copy .env.example to .env and fill in a value."
+        )
+    return value
 
-ALLOWED_HOSTS = []
+
+def get_bool_env(name, default):
+    """Return an environment variable parsed as a boolean."""
+    return os.getenv(name, default).strip().lower() in ENV_TRUE_VALUES
+
+
+def get_list_env(name, default):
+    """Return an environment variable split on commas."""
+    raw = os.getenv(name, default)
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+SECRET_KEY = get_required_env("SECRET_KEY")
+
+DEBUG = get_bool_env("DEBUG", "False")
+
+ALLOWED_HOSTS = get_list_env("ALLOWED_HOSTS", "127.0.0.1,localhost")
 
 
 # Application definition
