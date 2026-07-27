@@ -149,3 +149,70 @@ standardkonform. Praktisch wertet ihn niemand aus — das gelieferte Frontend
 liest `WWW-Authenticate` nie. Rückbau: auf `Bearer realm="api"`
 zurückstellen, sobald ein Client den Header interpretiert; der Statuscode
 bleibt davon unberührt, nur die Selbstauskunft ändert sich.
+
+---
+
+## 2026-07-27 — Fehlender GEMINI_API_KEY bricht den Start nicht ab
+
+Die allgemeine Django/DRF-Checkliste (liegt lokal, nicht im Repo) verlangt,
+dass fehlende Konfiguration den Start abbricht, statt still weiterzulaufen.
+Für `SECRET_KEY` gilt das in diesem Projekt auch: fehlt er, endet der Start
+mit `ImproperlyConfigured` und ohne unsicheren Ersatzwert. Für
+`GEMINI_API_KEY` gilt es nicht. Die Projektregeln verlangen, dass die
+Testsuite ohne API-Key, ohne Netz und ohne Modell-Download läuft; ein harter
+Abbruch beim Start würde `manage.py test` auf genau der Maschine unmöglich
+machen, auf der die Suite laufen soll — dasselbe gilt für eine Maschine ohne
+FFmpeg. Beides meldet deshalb ein System-Check als Warning
+(`quiz_app.W001` für FFmpeg, `quiz_app.W002` für den Key), sichtbar bei
+jedem `manage.py check` und bei jedem `runserver`. Die Strenge sitzt am Ort
+der Benutzung: `build_client()` in `quiz_app/services/gemini.py` wirft
+`MissingApiKeyError`, sobald ein Quiz erzeugt werden soll, und die API
+antwortet mit 500. Abweichung: eine unvollständig konfigurierte Installation
+startet und nimmt Requests an, statt beim Start zu scheitern; der Fehler
+zeigt sich erst beim ersten `POST /api/quizzes/`. Rückbau: den Check von
+Warning auf Error hochstufen, sobald die Testsuite einen Platzhalter-Key in
+der Umgebung setzen darf.
+
+---
+
+## 2026-07-27 — Ein Video ohne Sprache wird mit 400 beantwortet
+
+Die Endpoint-Dokumentation (liegt lokal, nicht im Repo) nennt für
+`POST /api/quizzes/` als Fehlerfälle 400 („Ungültige URL oder
+Anfragedaten"), 401 und 500. Ein Video ohne gesprochenen Inhalt passt in
+keine der drei Beschreibungen: die URL ist gültig, der Download gelingt,
+FFmpeg und Whisper laufen fehlerfrei durch — nur der Transkripttext bleibt
+leer. Whisper meldet das nicht als Fehler, sondern als leeres Ergebnis.
+Gewertet wird es hier als Eigenschaft der Eingabe und nicht als kaputte
+Werkzeugkette: `_transcript_text()` in
+`quiz_app/services/transcription.py` wirft `InvalidVideoError` statt
+`TranscriptionError`, und die API antwortet mit 400 und dem Hinweis, ein
+gesprochenes Video zu wählen. Das dehnt „ungültige URL" auf „URL zeigt auf
+ein Video ohne Sprache" aus — diesen Fall kennt die Doku nicht. Der
+Gegenentwurf wäre ein 500, das dem Nutzer einen Serverfehler meldet, obwohl
+er die Ursache selbst beheben kann, indem er ein anderes Video wählt.
+Rückbau: in `_transcript_text()` `TranscriptionError` werfen; dann
+beantwortet ein stummes Video die Anfrage mit 500 und der Fall verschwindet
+aus der 400-Klasse.
+
+---
+
+## 2026-07-27 — questions[] führt created_at und updated_at in allen Antworten
+
+Die Endpoint-Dokumentation (liegt lokal, nicht im Repo) widerspricht sich
+an dieser Stelle selbst: Das Beispiel für POST /api/quizzes/ enthält je
+Frage die Felder `created_at` und `updated_at`, die Beispiele für
+GET /api/quizzes/, GET /api/quizzes/{id}/ und PATCH /api/quizzes/{id}/
+enthalten sie nicht. Beide Lesarten sind dokumentiert; die Auflösung ist
+deshalb keine Abweichung vom Vertrag, sondern eine Entscheidung zwischen
+zwei Stellen desselben Vertrags. Gewählt ist die Obermenge: ein einziger
+Question-Serializer liefert beide Zeitstempel in allen vier Antworten.
+Damit ist das ausführlichere POST-Beispiel exakt erfüllt; die drei
+übrigen Antworten enthalten zwei Felder mehr, als ihr jeweiliges Beispiel
+zeigt. Das gelieferte Frontend liest von einer Frage ausschließlich `id`,
+`question_title`, `question_options` und `answer` — die beiden
+Zeitstempel sind dort wirkungslos. Der Gegenentwurf wären zwei
+Serializer, nach Action geschaltet; er kauft nichts als Wörtlichkeit und
+dupliziert die Felddefinition. Rückbau: einen zweiten Serializer ohne die
+beiden Zeitstempel anlegen und ihn in `get_serializer_class()` für list,
+retrieve und partial_update wählen.

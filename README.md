@@ -10,15 +10,16 @@ separately and is served as a static site.
 
 ## Project status
 
-In place: environment-driven settings, DRF wired to cookie-based JWT
-authentication, SimpleJWT with token blacklisting, CORS, the `Quiz` and
-`Question` models with their migration, the Django admin, and all four
-authentication endpoints — `POST /api/register/`, `POST /api/login/`,
-`POST /api/logout/` and `POST /api/token/refresh/`, with tests.
+**All nine documented endpoints are implemented** — the four authentication
+routes and the five quiz routes, including the whole generation pipeline from
+a YouTube URL to a stored quiz.
 
-**Not implemented yet:** the five quiz endpoints. Their rows in the endpoint
-table below describe the contract this backend is being built against, not
-what it answers today.
+In place besides them: environment-driven settings, DRF wired to cookie-based
+JWT authentication, SimpleJWT with token blacklisting, CORS, the `Quiz` and
+`Question` models with their migration, the Django admin, and a test suite
+that covers all of it without touching the network.
+
+There is no tenth route. `PUT /api/quizzes/{id}/` answers `405`.
 
 ## Requirements
 
@@ -93,6 +94,7 @@ placeholders. `.env` itself is ignored by git and must never be committed.
 | `DEBUG` | no | `False` | Django debug mode. `True` for local development only. |
 | `ALLOWED_HOSTS` | no | `127.0.0.1,localhost` | Comma-separated hosts Django will serve. |
 | `GEMINI_API_KEY` | for quiz generation | none | Google AI Studio key for Gemini Flash. |
+| `GEMINI_MODEL` | no | `gemini-3.5-flash` | Model asked for the quiz. Leave it alone unless a newer Flash model is out — the 2.x names are retired and answer `404`. |
 | `COOKIE_SECURE` | no | `False` | `Secure` flag on both auth cookies. `True` only behind HTTPS. |
 | `CORS_ALLOWED_ORIGINS` | no | `http://127.0.0.1:5500` | Comma-separated origins allowed to send credentials. No wildcard. |
 | `WHISPER_MODEL` | no | `base` | Whisper model size: `tiny`, `base`, `small`, `medium` or `large`. `small` is the sensible step up in transcript quality and costs roughly three times the runtime of `base`. |
@@ -260,6 +262,18 @@ proportion to the video length and the Whisper model size. Videos longer than
 `MAX_VIDEO_DURATION_SECONDS` are rejected with `400` rather than left to run
 into a timeout; see [Performance and limits](#performance-and-limits) for the
 measurements behind that number.
+
+**A busy Gemini is asked once more, and then gives up.** The API answers `503`
+when the model is under load and `429` when the quota is momentarily
+exhausted. Both are retried a single time after a short pause. Everything else
+is final — a refused key or a rejected request fails the same way on the
+second ask, and retrying it would only add latency to a request the client is
+already waiting on. If the second attempt fails too, `POST /api/quizzes/`
+answers `500`, and it does so *after* the download, the conversion and the
+transcription have already run: the client waits for the whole pipeline before
+learning that the last step failed, and a retry repeats all of that work. The
+real cause is in the log — the delivered frontend shows only "Error generating
+quiz".
 
 **A video without speech is rejected with `400`, not `500`.** Whisper returns
 an empty transcript for a silent or music-only video. That is a property of
