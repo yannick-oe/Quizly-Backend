@@ -1,4 +1,4 @@
-"""Writing of the cookies that carry the JWT tokens.
+"""Writing and removal of the cookies that carry the JWT tokens.
 
 No token ever appears in a response body, so these cookies are the
 only channel through which a client receives one.
@@ -41,3 +41,23 @@ def set_auth_cookies(response, access, refresh):
         refresh,
         REFRESH_TOKEN_LIFETIME_SETTING,
     )
+
+
+def _delete_token_cookie(response, name):
+    """Expire one auth cookie the way it was written.
+
+    Path and SameSite have to match the values the setter used, or
+    the browser keeps the cookie it already holds and drops the
+    deletion instead.
+    """
+    response.delete_cookie(
+        key=name,
+        path=COOKIE_PATH,
+        samesite=settings.COOKIE_SAMESITE,
+    )
+
+
+def delete_auth_cookies(response):
+    """Remove the access and refresh cookies from a response."""
+    _delete_token_cookie(response, settings.ACCESS_TOKEN_COOKIE_NAME)
+    _delete_token_cookie(response, settings.REFRESH_TOKEN_COOKIE_NAME)
