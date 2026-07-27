@@ -6,3 +6,18 @@ extend-exclude = '''
     migrations
 )/
 '''
+
+[tool.coverage.run]
+branch = true
+source = ["auth_app", "core", "quiz_app"]
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "core/asgi.py",
+    "core/settings.py",
+    "core/wsgi.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
