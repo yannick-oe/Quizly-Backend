@@ -1,5 +1,9 @@
+"""Application configuration for the quiz_app app."""
+
 from django.apps import AppConfig
 
 
 class QuizAppConfig(AppConfig):
-    name = 'quiz_app'
+    """Configure the quiz app."""
+
+    name = "quiz_app"

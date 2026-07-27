@@ -12,6 +12,10 @@ media/
 .env.*
 !.env.example
 
+# Tooling
+.coverage
+htmlcov/
+
 # macOS
 .DS_Store
 

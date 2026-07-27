@@ -1,0 +1,35 @@
+[flake8]
+max-line-length = 79
+max-doc-length = 72
+
+# flake8-functions. CFQ001 measures body lines and skips the docstring.
+# CFQ004 is raised above its default of 3 because guard clauses are the
+# required style here and every guard clause adds a return.
+max-function-length = 14
+max-parameters-amount = 6
+max-returns-amount = 6
+
+# flake8-docstrings filters by convention inside the plugin, so a code
+# outside the chosen convention cannot be re-enabled through select.
+# "all" is therefore the only way to run D212, and the mutually
+# exclusive pairs are decided here instead: D211 over D203, D212 over
+# D213. D406-D409 and D413 impose numpy section layout on Google style
+# sections; D415 repeats D400.
+docstring-convention = all
+extend-ignore =
+    D203,
+    D213,
+    D406,
+    D407,
+    D408,
+    D409,
+    D413,
+    D415,
+    E203
+
+extend-exclude =
+    .venv
+
+# Generated code: exempt from the length and docstring requirements.
+per-file-ignores =
+    */migrations/*: E501, W505, D1
