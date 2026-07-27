@@ -40,6 +40,11 @@ def get_list_env(name, default):
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+def get_env(name, default):
+    """Return an environment variable, or a default when it is empty."""
+    return os.getenv(name, "").strip() or default
+
+
 SECRET_KEY = get_required_env("SECRET_KEY")
 
 DEBUG = get_bool_env("DEBUG", "False")
@@ -182,3 +187,10 @@ COOKIE_HTTPONLY = True
 COOKIE_SAMESITE = "Lax"
 
 COOKIE_SECURE = get_bool_env("COOKIE_SECURE", "False")
+
+
+# Audio transcription
+
+DEFAULT_WHISPER_MODEL = "base"
+
+WHISPER_MODEL = get_env("WHISPER_MODEL", DEFAULT_WHISPER_MODEL)
