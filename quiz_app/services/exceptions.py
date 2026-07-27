@@ -28,3 +28,20 @@ class AudioConversionError(QuizGenerationError):
 
 class TranscriptionError(QuizGenerationError):
     """Whisper did not produce a usable transcript."""
+
+
+class MissingApiKeyError(QuizGenerationError):
+    """No Gemini API key is configured for this installation.
+
+    Raised where the key is needed rather than at startup. The test
+    suite has to run without a key, so the start only warns; see the
+    system check in quiz_app/checks.py.
+    """
+
+
+class GeminiRequestError(QuizGenerationError):
+    """The Gemini API did not answer with usable text."""
+
+
+class QuizContentError(QuizGenerationError):
+    """Gemini's answer stayed unusable after the repair attempt."""

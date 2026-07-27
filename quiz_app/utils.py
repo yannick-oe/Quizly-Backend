@@ -6,8 +6,13 @@ Every accepted YouTube link is answered with the same canonical watch
 form. The delivered frontend builds its embed URL from a regular
 expression on "v=" and shows a placeholder image when it finds no
 match, so a youtu.be link would otherwise cost the video player.
+
+The second helper unpacks a model answer. Language models wrap JSON in
+a Markdown code fence however often they are asked not to, so the fence
+is removed here rather than defended against in the service layer.
 """
 
+import json
 import re
 from urllib.parse import parse_qs, urlsplit
 
@@ -35,6 +40,37 @@ VIDEO_ID_QUERY_KEY = "v"
 VIDEO_ID_PATTERN = re.compile(r"[A-Za-z0-9_-]+\Z")
 
 WATCH_URL_TEMPLATE = "https://www.youtube.com/watch?v={video_id}"
+
+CODE_FENCE_PATTERN = re.compile(
+    r"\A```[ \t]*[A-Za-z0-9_+-]*[ \t]*\r?\n?"
+    r"(?P<body>.*?)"
+    r"\r?\n?[ \t]*```\Z",
+    re.DOTALL,
+)
+
+FENCE_BODY_GROUP = "body"
+
+
+def strip_code_fences(text):
+    """Return a model answer without its Markdown code fence.
+
+    Text that carries no fence is answered stripped but unchanged, so
+    the helper is safe to run over every response.
+    """
+    stripped = (text or "").strip()
+    match = CODE_FENCE_PATTERN.match(stripped)
+    if match is None:
+        return stripped
+    return match.group(FENCE_BODY_GROUP).strip()
+
+
+def parse_json_response(text):
+    """Return the data a fenced or bare JSON answer carries.
+
+    Raises ValueError for everything that is not valid JSON, which is
+    the class json.loads itself raises. Nothing else escapes.
+    """
+    return json.loads(strip_code_fences(text))
 
 
 def normalize_youtube_url(url):
