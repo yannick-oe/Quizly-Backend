@@ -12,12 +12,13 @@ separately and is served as a static site.
 
 In place: environment-driven settings, DRF wired to cookie-based JWT
 authentication, SimpleJWT with token blacklisting, CORS, the `Quiz` and
-`Question` models with their migration, the Django admin, and the first two
-endpoints — `POST /api/register/` and `POST /api/login/`.
+`Question` models with their migration, the Django admin, and all four
+authentication endpoints — `POST /api/register/`, `POST /api/login/`,
+`POST /api/logout/` and `POST /api/token/refresh/`, with tests.
 
-**Not implemented yet:** `POST /api/logout/`, `POST /api/token/refresh/` and
-the five quiz endpoints. Their rows in the endpoint table below describe the
-contract this backend is being built against, not what it answers today.
+**Not implemented yet:** the five quiz endpoints. Their rows in the endpoint
+table below describe the contract this backend is being built against, not
+what it answers today.
 
 ## Requirements
 
@@ -181,6 +182,8 @@ excluded from formatting and from the length and docstring checks.
 
 The test suite mocks yt-dlp, Whisper and Gemini. It runs without network
 access, without an API key and without downloading model weights.
+`coverage report` enforces a minimum total configured in
+[pyproject.toml](pyproject.toml) and exits non-zero below it.
 
 ## Known limitations
 
@@ -212,3 +215,16 @@ a timeout.
 **Game progress is not stored.** The backend keeps quizzes and questions.
 How far a user got through a quiz lives in the frontend only, and is gone on
 reload.
+
+**Registration does not check password strength.** Neither the endpoint
+documentation nor the project checklist asks for one, so `POST /api/register/`
+accepts any non-empty password and does not run Django's
+`AUTH_PASSWORD_VALIDATORS`. The validators stay configured and still apply
+where Django runs them itself, namely `createsuperuser` and the password
+forms in the admin.
+
+**A registration error reads `undefined` in the delivered frontend.** That
+frontend renders only `data.username` from a `400`, so a rejected email or a
+password mismatch produces a toast saying `undefined`. The response body does
+carry the real message, under the `email` or `confirmed_password` key. This
+is a frontend limitation and is not worked around in the backend.

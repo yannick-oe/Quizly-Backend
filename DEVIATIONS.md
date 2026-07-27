@@ -77,3 +77,55 @@ für ein Deployment auf None gesetzt, entfällt der Schutz ersatzlos. Der
 Django-Admin behält seinen CSRF-Schutz über die Middleware. Rückbau:
 Double-Submit-Token über ein zweites, nicht-HttpOnly-Cookie und einen
 X-CSRFToken-Header, sobald ein Client existiert, der diesen Header senden kann.
+
+---
+
+## 2026-07-27 — E-Mail ist Pflicht und wird als eindeutig behandelt
+
+Die Endpoint-Dokumentation (liegt lokal, nicht im Repo) führt `email` im
+Request-Body von POST /api/register/ auf, sagt aber nichts über Pflicht
+oder Eindeutigkeit. Die Quizly-Checkliste (ebenfalls lokal) nennt als
+Beispiel für eine ungültige Eingabe ausdrücklich eine „bereits verwendete
+E-Mail" und verlangt dafür eine Fehlermeldung. Djangos
+`django.contrib.auth.User` liefert beides nicht: `email` ist `blank=True`
+und ohne Unique-Constraint. Der Registrierungs-Serializer erzwingt deshalb
+beides — `required=True`, `allow_blank=False` und eine Prüfung auf
+`__iexact`, sodass A@X.com und a@x.com als dieselbe Adresse gelten.
+Abweichung: eine Registrierung, die vanilla Django annehmen würde, wird mit
+400 abgelehnt, und zwar auch bei abweichender Groß-/Kleinschreibung.
+Rückbau: `validate_email` und den `extra_kwargs`-Eintrag für `email`
+entfernen.
+
+---
+
+## 2026-07-27 — Login antwortet 401 auch bei fehlendem Feld
+
+Die Endpoint-Dokumentation (liegt lokal, nicht im Repo) nennt für
+POST /api/login/ genau drei Statuscodes: 200, 401 und 500. Ein 400 kommt
+dort nicht vor. Die Quizly-Checkliste verlangt zusätzlich, dass
+Fehlermeldungen beim Login „aus Sicherheitsgründen allgemein gehalten"
+sind, und das gelieferte Frontend liest ausschließlich
+`responseData.detail` aus der Fehlerantwort — ein DRF-Feldfehler-Dict
+erzeugt dort `undefined`. Deshalb sind `username` und `password` im
+LoginSerializer nicht auf Feldebene verpflichtend; die Prüfung läuft in
+`validate()` und beantwortet fehlende wie falsche Anmeldedaten
+gleichermaßen mit 401 und identischem Text. Abweichung vom
+DRF-Normalverhalten, nicht vom Vertrag. Rückbau: Felder wieder auf
+`required=True` setzen; dann antwortet ein unvollständiger Body mit 400.
+
+---
+
+## 2026-07-27 — Token-Refresh schreibt beide Cookies
+
+Die Endpoint-Dokumentation (liegt lokal, nicht im Repo) vermerkt unter
+„Extra Information" zu POST /api/token/refresh/ nur: „Setzt neuen
+`access_token` Cookie." Die SimpleJWT-Konfiguration dieses Projekts hat
+`ROTATE_REFRESH_TOKENS` und `BLACKLIST_AFTER_ROTATION` aktiv — jeder
+Refresh erzeugt also auch einen neuen Refresh-Token und setzt den alten auf
+die Blacklist. Würde nur der Access-Cookie geschrieben, hielte der Client
+danach einen gesperrten Refresh-Token und wäre beim nächsten Refresh
+ausgesperrt. Die Antwort setzt deshalb beide Cookies. Die Notiz der Doku
+wird als Beschreibung gelesen, nicht als abschließende Aufzählung der
+Set-Cookie-Header. Rückbau: `ROTATE_REFRESH_TOKENS` auf False setzen; dann
+bleibt der Refresh-Token gültig und nur der Access-Cookie muss neu
+geschrieben werden.
