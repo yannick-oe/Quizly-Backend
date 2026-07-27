@@ -3,11 +3,20 @@
 The URL forms below are the ones a user can paste into the delivered
 frontend. All of them have to end up as the same watch URL, because
 that frontend extracts the video id with a regular expression on "v=".
+
+The fenced forms below are the ones a language model produces. All of
+them have to unpack to the same data, and everything that is not JSON
+has to leave as a ValueError rather than as a crash.
 """
 
 from django.test import SimpleTestCase
 
-from quiz_app.utils import extract_youtube_video_id, normalize_youtube_url
+from quiz_app.utils import (
+    extract_youtube_video_id,
+    normalize_youtube_url,
+    parse_json_response,
+    strip_code_fences,
+)
 
 from .helpers import VIDEO_ID
 
@@ -49,6 +58,32 @@ REJECTED_URLS = (
     ("a punctuated id", "https://www.youtube.com/watch?v=not+an+id"),
 )
 
+PAYLOAD = {"title": "A quiz", "questions": [{"answer": "A"}]}
+
+PAYLOAD_JSON = '{"title": "A quiz", "questions": [{"answer": "A"}]}'
+
+WRAPPED_PAYLOADS = (
+    ("no fence at all", PAYLOAD_JSON),
+    ("a json fence", f"```json\n{PAYLOAD_JSON}\n```"),
+    ("a bare fence", f"```\n{PAYLOAD_JSON}\n```"),
+    ("an uppercase language tag", f"```JSON\n{PAYLOAD_JSON}\n```"),
+    ("surrounding whitespace", f"\n\n  {PAYLOAD_JSON}  \n"),
+    ("a padded fence", f"  ```json\n{PAYLOAD_JSON}\n```  \n"),
+    ("carriage returns", f"```json\r\n{PAYLOAD_JSON}\r\n```"),
+    ("a fence on one line", f"```json {PAYLOAD_JSON}```"),
+    ("a bare fence without newlines", f"```{PAYLOAD_JSON}```"),
+)
+
+BROKEN_PAYLOADS = (
+    ("an explanation instead of JSON", "Sorry, I cannot do that."),
+    ("a fenced explanation", "```json\nSorry, no quiz.\n```"),
+    ("a truncated object", '```json\n{"title": "A quiz",\n```'),
+    ("single quotes", "```json\n{'title': 'A quiz'}\n```"),
+    ("an empty answer", ""),
+    ("an empty fence", "```json\n\n```"),
+    ("nothing at all", None),
+)
+
 
 class NormalizeYoutubeUrlTests(SimpleTestCase):
     """Cover the URL forms the pipeline has to accept and refuse."""
@@ -78,3 +113,37 @@ class NormalizeYoutubeUrlTests(SimpleTestCase):
     def test_an_unusable_url_has_no_video_id(self):
         """The id helper answers None where the URL is not a video."""
         self.assertIsNone(extract_youtube_video_id("https://example.test"))
+
+
+class ParseJsonResponseTests(SimpleTestCase):
+    """Cover the shapes a model answer arrives in."""
+
+    def test_wrapped_and_bare_forms_unpack_alike(self):
+        """Every fenced form yields the same data as the bare one."""
+        for label, text in WRAPPED_PAYLOADS:
+            with self.subTest(form=label):
+                self.assertEqual(parse_json_response(text), PAYLOAD)
+
+    def test_a_list_at_the_top_level_survives(self):
+        """The helper does not insist on an object."""
+        self.assertEqual(parse_json_response("```json\n[1]\n```"), [1])
+
+    def test_broken_json_raises_a_value_error(self):
+        """Unusable content leaves as ValueError, not as a crash."""
+        for label, text in BROKEN_PAYLOADS:
+            with self.subTest(form=label):
+                with self.assertRaises(ValueError):
+                    parse_json_response(text)
+
+    def test_text_without_a_fence_is_only_stripped(self):
+        """A bare answer keeps its content and loses its padding."""
+        self.assertEqual(strip_code_fences("  hello  "), "hello")
+
+    def test_an_empty_answer_stays_empty(self):
+        """Nothing at all is answered with an empty string."""
+        self.assertEqual(strip_code_fences(""), "")
+
+    def test_an_unclosed_fence_is_left_alone(self):
+        """A fence without an end is not silently repaired."""
+        text = '```json\n{"a": 1}'
+        self.assertEqual(strip_code_fences(text), text)
