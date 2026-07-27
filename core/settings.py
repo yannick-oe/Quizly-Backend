@@ -5,6 +5,7 @@ loaded on start; see .env.example for the variables this project uses.
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -147,9 +148,24 @@ CORS_ALLOWED_ORIGINS = get_list_env(
 )
 
 
+# Django REST Framework
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "auth_app.api.authentication.CookieJWTAuthentication",
+    ],
+}
+
+
 # JSON Web Tokens
 
+ACCESS_TOKEN_LIFETIME_MINUTES = 60
+
+REFRESH_TOKEN_LIFETIME_DAYS = 1
+
 SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=ACCESS_TOKEN_LIFETIME_MINUTES),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=REFRESH_TOKEN_LIFETIME_DAYS),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
 }
