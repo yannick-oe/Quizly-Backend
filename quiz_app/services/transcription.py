@@ -7,6 +7,10 @@ loads the model it names instead of returning the old one.
 
 load_transcription_model is also the seam the tests replace, which is
 what keeps the suite from downloading model weights.
+
+A transcript that stays empty is not counted as a broken tool chain.
+A video that carries no speech is a property of the input, so it leaves
+as an InvalidVideoError and the API layer answers it with a 400.
 """
 
 import logging
@@ -14,7 +18,7 @@ import logging
 import whisper
 from django.conf import settings
 
-from .exceptions import TranscriptionError
+from .exceptions import InvalidVideoError, TranscriptionError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -25,7 +29,8 @@ TRANSCRIPTION_FAILED_MESSAGE = (
 )
 
 EMPTY_TRANSCRIPT_MESSAGE = (
-    "The video carries no speech that could be transcribed."
+    "No speech was found in the video. Pick a video that is spoken, "
+    "not one that is silent or music only."
 )
 
 _MODEL_CACHE = {}
@@ -60,5 +65,5 @@ def _transcript_text(result):
     text = (result or {}).get(TRANSCRIPT_KEY) or ""
     stripped = text.strip()
     if not stripped:
-        raise TranscriptionError(EMPTY_TRANSCRIPT_MESSAGE)
+        raise InvalidVideoError(EMPTY_TRANSCRIPT_MESSAGE)
     return stripped

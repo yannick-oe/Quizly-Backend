@@ -44,7 +44,8 @@ ffmpeg -version
 
 The first quiz generation additionally downloads the Whisper model weights,
 which needs a working internet connection and some disk space. The size
-depends on `WHISPER_MODEL`.
+depends on `WHISPER_MODEL`. See [Performance and limits](#performance-and-limits)
+for what that costs in seconds.
 
 ## Setup
 
@@ -94,7 +95,7 @@ placeholders. `.env` itself is ignored by git and must never be committed.
 | `GEMINI_API_KEY` | for quiz generation | none | Google AI Studio key for Gemini Flash. |
 | `COOKIE_SECURE` | no | `False` | `Secure` flag on both auth cookies. `True` only behind HTTPS. |
 | `CORS_ALLOWED_ORIGINS` | no | `http://127.0.0.1:5500` | Comma-separated origins allowed to send credentials. No wildcard. |
-| `WHISPER_MODEL` | no | `base` | Whisper model size: `tiny`, `base`, `small`, `medium` or `large`. Larger is slower and needs more memory. |
+| `WHISPER_MODEL` | no | `base` | Whisper model size: `tiny`, `base`, `small`, `medium` or `large`. `small` is the sensible step up in transcript quality and costs roughly three times the runtime of `base`. |
 
 Boolean variables accept `1`, `true`, `yes` or `on`, case-insensitive.
 Anything else counts as false.
@@ -185,6 +186,53 @@ access, without an API key and without downloading model weights.
 `coverage report` enforces a minimum total configured in
 [pyproject.toml](pyproject.toml) and exits non-zero below it.
 
+## Performance and limits
+
+`POST /api/quizzes/` does the whole chain inside the request, so the time it
+takes is the time the client waits. These numbers were measured on an Apple
+Silicon development machine with `WHISPER_MODEL=base`, on a **345 second**
+video, with the model already in memory:
+
+| Step | Time |
+|---|---|
+| Download (yt-dlp) | 1.2 s |
+| Conversion (FFmpeg) | 0.5 s |
+| Whisper model load (cached) | 0.3 s |
+| Transcription | 8.5 s |
+| **Total** | **10.5 s** |
+
+That is roughly **33× realtime**. Two things are not in the table:
+
+- **The first run in a fresh process costs about 4.3 s extra**, because the
+  `base` model weights are downloaded before anything can be transcribed. After
+  that the model stays in memory for the lifetime of the process.
+- **The Gemini call is on top of it** and depends on the API, not on this
+  machine.
+
+### Why videos are capped at 30 minutes
+
+`MAX_VIDEO_DURATION_SECONDS` is **1800**. The duration is read from the video
+metadata *before* the download starts, and anything longer is rejected with
+`400` and a message that names the limit.
+
+The number is derived, not picked. At 33× realtime, 1800 seconds of video need
+about **55 seconds** of local processing, plus the Gemini call. Chrome gives a
+`fetch()` without an explicit timeout roughly **300 seconds** before it gives
+up, and the delivered frontend sets no timeout of its own — so 300 seconds is
+the whole budget for the request. 55 seconds inside a 300 second ceiling leaves
+headroom for a machine about **three times slower** than the one measured on,
+and still room for Gemini.
+
+`FFMPEG_TIMEOUT_SECONDS` is **120** for the same reason: it has to be generous
+enough for the slow machine and short enough that a hung FFmpeg cannot eat the
+whole budget. Both constants live in
+[quiz_app/constants.py](quiz_app/constants.py).
+
+Raising `WHISPER_MODEL` to `small` roughly triples the transcription time, so
+about 165 seconds for a 30 minute video on the reference machine. That still
+fits, but not with much left over — lower `MAX_VIDEO_DURATION_SECONDS` along
+with it if the deployment machine is slower.
+
 ## Known limitations
 
 **Open the frontend at `http://127.0.0.1:5500`, not at
@@ -208,9 +256,15 @@ showing a message. The reasoning is in [DEVIATIONS.md](DEVIATIONS.md).
 **Quiz generation is synchronous.** `POST /api/quizzes/` downloads,
 transcribes and generates within the request, because the documented response
 is the finished quiz. Expect the request to take a while, roughly in
-proportion to the video length and the Whisper model size. Videos above a
-configured maximum length are rejected with `400` rather than left to run into
-a timeout.
+proportion to the video length and the Whisper model size. Videos longer than
+`MAX_VIDEO_DURATION_SECONDS` are rejected with `400` rather than left to run
+into a timeout; see [Performance and limits](#performance-and-limits) for the
+measurements behind that number.
+
+**A video without speech is rejected with `400`, not `500`.** Whisper returns
+an empty transcript for a silent or music-only video. That is a property of
+the URL the client sent, not a broken tool chain, so it is answered like an
+unusable video rather than like a server fault.
 
 **A logout without a usable refresh cookie still logs you out.**
 `POST /api/logout/` needs a valid access token, but it answers `200` and

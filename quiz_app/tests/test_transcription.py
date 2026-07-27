@@ -10,7 +10,10 @@ from unittest import mock
 from django.test import SimpleTestCase, override_settings
 
 from quiz_app.services import transcription
-from quiz_app.services.exceptions import TranscriptionError
+from quiz_app.services.exceptions import (
+    InvalidVideoError,
+    TranscriptionError,
+)
 
 from .helpers import LOAD_MODEL_TARGET, TRANSCRIPTION_LOGGER
 
@@ -98,18 +101,27 @@ class TranscribeAudioTests(TranscriptionTestCase):
         ):
             transcription.transcribe_audio(AUDIO_PATH)
 
-    def test_an_empty_transcript_is_rejected(self):
-        """A video without speech does not pass as a transcript."""
+    def test_an_empty_transcript_blames_the_video(self):
+        """A silent video is the input's fault, not the tool chain's."""
         model = fake_model()
         model.transcribe.return_value = {"text": "   \n"}
         with mock.patch(LOAD_MODEL_TARGET, return_value=model):
-            with self.assertRaises(TranscriptionError):
+            with self.assertRaises(InvalidVideoError):
                 transcription.transcribe_audio(AUDIO_PATH)
+
+    def test_an_empty_transcript_is_no_transcription_failure(self):
+        """The silent case stays out of the 500 error class."""
+        model = fake_model()
+        model.transcribe.return_value = {"text": ""}
+        with mock.patch(LOAD_MODEL_TARGET, return_value=model):
+            with self.assertRaises(InvalidVideoError):
+                transcription.transcribe_audio(AUDIO_PATH)
+        self.assertFalse(issubclass(InvalidVideoError, TranscriptionError))
 
     def test_a_result_without_text_is_rejected(self):
         """A result that carries no text key is refused."""
         model = fake_model()
         model.transcribe.return_value = None
         with mock.patch(LOAD_MODEL_TARGET, return_value=model):
-            with self.assertRaises(TranscriptionError):
+            with self.assertRaises(InvalidVideoError):
                 transcription.transcribe_audio(AUDIO_PATH)

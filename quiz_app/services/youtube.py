@@ -19,7 +19,10 @@ from pathlib import Path
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import YoutubeDLError
 
-from ..constants import MAX_VIDEO_DURATION_SECONDS
+from ..constants import (
+    FFMPEG_TIMEOUT_SECONDS,
+    MAX_VIDEO_DURATION_SECONDS,
+)
 from .exceptions import (
     AudioConversionError,
     InvalidVideoError,
@@ -61,8 +64,6 @@ FFMPEG_WAV_ARGUMENTS = (
     "-ac",
     WAV_CHANNELS,
 )
-
-FFMPEG_TIMEOUT_SECONDS = 600
 
 VIDEO_UNAVAILABLE_MESSAGE = (
     "The video could not be read. It may be private, removed, region "
