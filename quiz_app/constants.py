@@ -11,8 +11,11 @@ fetch without its own timeout roughly 300 seconds, and quiz generation
 answers inside the request, so that budget has to cover everything.
 
 The two Gemini numbers spend the rest of that budget. A model that
-answers "not now" is asked a second time after a short pause, so one
-generation can cost two request timeouts and the pause between them.
+answers "not now" is asked a second time after a short pause, and one
+generation sends two prompts, so the worst case is four request
+timeouts and two pauses: 244 seconds on top of the 55, which still
+fits under the 300. Real calls answer in 5 to 20 seconds, so the
+timeout bounds a connection that hangs, not an answer that arrives.
 
 The one message here is not a quantity. The same sentence refuses a
 link that is not a YouTube video twice: once in the create serializer,
@@ -26,7 +29,7 @@ MAX_VIDEO_DURATION_SECONDS = 1800
 
 FFMPEG_TIMEOUT_SECONDS = 120
 
-GEMINI_TIMEOUT_MILLISECONDS = 120_000
+GEMINI_TIMEOUT_MILLISECONDS = 60_000
 
 GEMINI_RETRY_DELAY_SECONDS = 2
 
