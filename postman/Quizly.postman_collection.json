@@ -1,0 +1,544 @@
+{
+  "info": {
+    "name": "Quizly Backend API",
+    "description": "Every documented Quizly endpoint, in an order that runs from top to bottom: register, login, create a quiz, list, retrieve, patch, delete, refresh the token, log out. The documented failure cases sit directly below the request they belong to.\n\nAuthentication is carried by HttpOnly cookies. Postman keeps them in its cookie jar for 127.0.0.1 and attaches them by itself, so no request in this collection sends an Authorization header. Nothing to copy, nothing to paste.\n\nBefore the first run:\n\n1. Start the server with `python manage.py runserver`.\n2. Set the collection variable `video_url` to a real, short, spoken-word YouTube video. The default is the placeholder URL from the endpoint documentation; it passes URL validation and is then rejected with 400 because no such video exists.\n3. `Create quiz` needs FFmpeg on PATH and a `GEMINI_API_KEY` in `.env`, and it runs the whole pipeline inside the request. Expect it to take a while.\n\n`Register` stamps `username` and `email` with the current time, so the collection can be run again without colliding with the account of the previous run. `Create quiz` writes the id of the new quiz into `quiz_id`, which is what retrieve, patch and delete read.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000/api",
+      "type": "string",
+      "description": "Root of the API. Use 127.0.0.1, not localhost."
+    },
+    {
+      "key": "username",
+      "value": "quizly_demo",
+      "type": "string",
+      "description": "Overwritten by the Register request with a unique value."
+    },
+    {
+      "key": "password",
+      "value": "quizly-demo-password",
+      "type": "string",
+      "description": "Used by Register and Login."
+    },
+    {
+      "key": "email",
+      "value": "quizly.demo@example.com",
+      "type": "string",
+      "description": "Overwritten by the Register request with a unique value."
+    },
+    {
+      "key": "video_url",
+      "value": "https://www.youtube.com/watch?v=example",
+      "type": "string",
+      "description": "The placeholder from the endpoint documentation. Replace it with a real short video before running Create quiz."
+    },
+    {
+      "key": "quiz_id",
+      "value": "",
+      "type": "string",
+      "description": "Written by Create quiz, read by retrieve, patch and delete."
+    },
+    {
+      "key": "missing_quiz_id",
+      "value": "999999",
+      "type": "string",
+      "description": "An id that belongs to no quiz, for the documented 404."
+    }
+  ],
+  "item": [
+    {
+      "name": "Register",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const stamp = Date.now();",
+              "pm.collectionVariables.set('username', 'quizly_' + stamp);",
+              "pm.collectionVariables.set('email', 'quizly_' + stamp + '@example.com');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "pm.test('Answers with the documented message', function () {",
+              "    pm.expect(pm.response.json().detail).to.eql('User created successfully!');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\",\n  \"confirmed_password\": \"{{password}}\",\n  \"email\": \"{{email}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/register/",
+          "host": ["{{base_url}}"],
+          "path": ["register", ""]
+        },
+        "description": "Creates an account. The two passwords have to match, and the email address may not be registered yet."
+      },
+      "response": []
+    },
+    {
+      "name": "Register — passwords do not match (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test('Names the field that failed', function () {",
+              "    pm.expect(pm.response.json()).to.have.property('confirmed_password');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{username}}_mismatch\",\n  \"password\": \"{{password}}\",\n  \"confirmed_password\": \"{{password}}-different\",\n  \"email\": \"mismatch-{{email}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/register/",
+          "host": ["{{base_url}}"],
+          "path": ["register", ""]
+        },
+        "description": "No account is created here, so this request stays repeatable. The error arrives in the DRF field format, under confirmed_password."
+      },
+      "response": []
+    },
+    {
+      "name": "Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Carries the user object', function () {",
+              "    pm.expect(pm.response.json().user).to.have.property('id');",
+              "});",
+              "pm.test('Sets both auth cookies', function () {",
+              "    pm.expect(pm.cookies.has('access_token')).to.be.true;",
+              "    pm.expect(pm.cookies.has('refresh_token')).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/login/",
+          "host": ["{{base_url}}"],
+          "path": ["login", ""]
+        },
+        "description": "Sets access_token and refresh_token as HttpOnly cookies. Neither token appears in the response body; every request after this one is authenticated by the cookie jar."
+      },
+      "response": []
+    },
+    {
+      "name": "Login — wrong password (401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('401 Unauthorized', function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "pm.test('Answers with detail, not a field error', function () {",
+              "    pm.expect(pm.response.json()).to.have.property('detail');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}-wrong\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/login/",
+          "host": ["{{base_url}}"],
+          "path": ["login", ""]
+        },
+        "description": "A failed login sets no cookies, so the session from the request above survives and the run continues."
+      },
+      "response": []
+    },
+    {
+      "name": "Create quiz",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 Created — set video_url to a real video if this fails', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "if (pm.response.code === 201) {",
+              "    pm.collectionVariables.set('quiz_id', pm.response.json().id);",
+              "}",
+              "pm.test('Carries the whole quiz', function () {",
+              "    const quiz = pm.response.json();",
+              "    pm.expect(quiz.questions).to.have.lengthOf(10);",
+              "    pm.expect(quiz.questions[0].question_options).to.have.lengthOf(4);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"url\": \"{{video_url}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/quizzes/",
+          "host": ["{{base_url}}"],
+          "path": ["quizzes", ""]
+        },
+        "description": "Runs the whole pipeline inside the request: download, convert, transcribe, ask Gemini, store. The response is the finished quiz, and its id is written into quiz_id for the requests below.\n\nA URL that is not a YouTube video, a video longer than 30 minutes and a video without speech are all answered with 400. A broken tool chain or an unusable model answer is a 500."
+      },
+      "response": []
+    },
+    {
+      "name": "List quizzes",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Answers with a bare array', function () {",
+              "    pm.expect(pm.response.json()).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/quizzes/",
+          "host": ["{{base_url}}"],
+          "path": ["quizzes", ""]
+        },
+        "description": "The quizzes of the logged in user, as a bare array. There is no pagination and no results wrapper."
+      },
+      "response": []
+    },
+    {
+      "name": "Retrieve quiz",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Is the quiz that was created', function () {",
+              "    pm.expect(String(pm.response.json().id)).to.eql(pm.collectionVariables.get('quiz_id'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/quizzes/{{quiz_id}}/",
+          "host": ["{{base_url}}"],
+          "path": ["quizzes", "{{quiz_id}}", ""]
+        },
+        "description": "A quiz that belongs to somebody else is answered with 403 rather than 404, so that both documented cases stay distinguishable."
+      },
+      "response": []
+    },
+    {
+      "name": "Retrieve quiz — unknown id (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('404 Not Found', function () {",
+              "    pm.response.to.have.status(404);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/quizzes/{{missing_quiz_id}}/",
+          "host": ["{{base_url}}"],
+          "path": ["quizzes", "{{missing_quiz_id}}", ""]
+        },
+        "description": "An id that belongs to no quiz at all. Not to be confused with the 403 a quiz of another user answers."
+      },
+      "response": []
+    },
+    {
+      "name": "Update quiz",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Took both fields', function () {",
+              "    const quiz = pm.response.json();",
+              "    pm.expect(quiz.title).to.eql('Partially Updated Title');",
+              "    pm.expect(quiz.description).to.eql('Partially Updated Description');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Partially Updated Title\",\n  \"description\": \"Partially Updated Description\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/quizzes/{{quiz_id}}/",
+          "host": ["{{base_url}}"],
+          "path": ["quizzes", "{{quiz_id}}", ""]
+        },
+        "description": "Only title and description are writable. Everything else is read-only and is dropped instead of rejected, which is what lets the delivered frontend send the whole object back."
+      },
+      "response": []
+    },
+    {
+      "name": "Delete quiz",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('204 No Content', function () {",
+              "    pm.response.to.have.status(204);",
+              "});",
+              "pm.test('Answers with no body', function () {",
+              "    pm.expect(pm.response.text()).to.eql('');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/quizzes/{{quiz_id}}/",
+          "host": ["{{base_url}}"],
+          "path": ["quizzes", "{{quiz_id}}", ""]
+        },
+        "description": "Deletes the quiz and all of its questions. This is the only endpoint that answers without a body."
+      },
+      "response": []
+    },
+    {
+      "name": "Refresh token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Answers with the documented message', function () {",
+              "    pm.expect(pm.response.json().detail).to.eql('Token refreshed');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/token/refresh/",
+          "host": ["{{base_url}}"],
+          "path": ["token", "refresh", ""]
+        },
+        "description": "The refresh token is read from its cookie and never from the body. Refresh tokens rotate, so this writes both cookies again and blacklists the previous refresh token."
+      },
+      "response": []
+    },
+    {
+      "name": "Logout",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Answers with the documented message', function () {",
+              "    pm.expect(pm.response.json().detail).to.eql('Log-Out successfully! All Tokens will be deleted. Refresh token is now invalid.');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/logout/",
+          "host": ["{{base_url}}"],
+          "path": ["logout", ""]
+        },
+        "description": "Blacklists the refresh token and clears both cookies. Run Login again before running the quiz requests once more."
+      },
+      "response": []
+    }
+  ]
+}
