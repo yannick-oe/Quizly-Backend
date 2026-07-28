@@ -6,6 +6,22 @@ festgehalten: Kontext, Abweichung, Begründung, Rückbau-Idee. Die
 Referenzdokumente liegen lokal und nicht im Repo; sie werden deshalb
 inhaltlich zitiert statt verlinkt.
 
+## Inhalt
+
+Sortiert nach dem Datum der Entscheidung, nicht nach Thema.
+
+1. [2026-07-27 — Detail-Queryset wird nicht auf den Eigentümer gefiltert](#2026-07-27--detail-queryset-wird-nicht-auf-den-eigentümer-gefiltert)
+2. [2026-07-27 — Harte Obergrenze für die Videolänge, beantwortet mit 400](#2026-07-27--harte-obergrenze-für-die-videolänge-beantwortet-mit-400)
+3. [2026-07-27 — video_url wird beim Speichern auf die watch?v=-Form normalisiert](#2026-07-27--video_url-wird-beim-speichern-auf-die-watchv-form-normalisiert)
+4. [2026-07-27 — Kein CSRF-Schutz auf der API; SameSite=Lax ist die Gegenmaßnahme](#2026-07-27--kein-csrf-schutz-auf-der-api-samesitelax-ist-die-gegenmaßnahme)
+5. [2026-07-27 — E-Mail ist Pflicht und wird als eindeutig behandelt](#2026-07-27--e-mail-ist-pflicht-und-wird-als-eindeutig-behandelt)
+6. [2026-07-27 — Login antwortet 401 auch bei fehlendem Feld](#2026-07-27--login-antwortet-401-auch-bei-fehlendem-feld)
+7. [2026-07-27 — Token-Refresh schreibt beide Cookies](#2026-07-27--token-refresh-schreibt-beide-cookies)
+8. [2026-07-27 — WWW-Authenticate meldet ein nicht registriertes Schema](#2026-07-27--www-authenticate-meldet-ein-nicht-registriertes-schema)
+9. [2026-07-27 — Fehlender GEMINI_API_KEY bricht den Start nicht ab](#2026-07-27--fehlender-gemini_api_key-bricht-den-start-nicht-ab)
+10. [2026-07-27 — Ein Video ohne Sprache wird mit 400 beantwortet](#2026-07-27--ein-video-ohne-sprache-wird-mit-400-beantwortet)
+11. [2026-07-27 — questions\[\] führt created_at und updated_at in allen Antworten](#2026-07-27--questions-führt-created_at-und-updated_at-in-allen-antworten)
+
 ---
 
 ## 2026-07-27 — Detail-Queryset wird nicht auf den Eigentümer gefiltert

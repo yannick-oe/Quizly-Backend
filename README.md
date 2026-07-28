@@ -16,10 +16,16 @@ a YouTube URL to a stored quiz.
 
 In place besides them: environment-driven settings, DRF wired to cookie-based
 JWT authentication, SimpleJWT with token blacklisting, CORS, the `Quiz` and
-`Question` models with their migration, the Django admin, and a test suite
-that covers all of it without touching the network.
+`Question` models with their migration, the Django admin with both models
+editable, startup checks that warn about a missing FFmpeg or a missing Gemini
+key, a [Postman collection](postman/Quizly.postman_collection.json) for every
+endpoint, and a test suite that covers all of it without touching the network.
 
 There is no tenth route. `PUT /api/quizzes/{id}/` answers `405`.
+
+Every deliberate departure from the endpoint documentation, from the behaviour
+of the delivered frontend or from the coding standards is written down in
+[DEVIATIONS.md](DEVIATIONS.md).
 
 ## Requirements
 
@@ -94,7 +100,7 @@ placeholders. `.env` itself is ignored by git and must never be committed.
 | `DEBUG` | no | `False` | Django debug mode. `True` for local development only. |
 | `ALLOWED_HOSTS` | no | `127.0.0.1,localhost` | Comma-separated hosts Django will serve. |
 | `GEMINI_API_KEY` | for quiz generation | none | Google AI Studio key for Gemini Flash. |
-| `GEMINI_MODEL` | no | `gemini-3.5-flash` | Model asked for the quiz. Leave it alone unless a newer Flash model is out — the 2.x names are retired and answer `404`. |
+| `GEMINI_MODEL` | no | `gemini-3.5-flash-lite` | Model asked for the quiz. The default is the lite variant on purpose; see [Known limitations](#known-limitations). The 2.x names are retired and answer `404`. |
 | `COOKIE_SECURE` | no | `False` | `Secure` flag on both auth cookies. `True` only behind HTTPS. |
 | `CORS_ALLOWED_ORIGINS` | no | `http://127.0.0.1:5500` | Comma-separated origins allowed to send credentials. No wildcard. |
 | `WHISPER_MODEL` | no | `base` | Whisper model size: `tiny`, `base`, `small`, `medium` or `large`. `small` is the sensible step up in transcript quality and costs roughly three times the runtime of `base`. |
@@ -188,6 +194,26 @@ access, without an API key and without downloading model weights.
 `coverage report` enforces a minimum total configured in
 [pyproject.toml](pyproject.toml) and exits non-zero below it.
 
+### Postman
+
+A collection covering every documented endpoint lives at
+[postman/Quizly.postman_collection.json](postman/Quizly.postman_collection.json).
+Import it and run it from top to bottom: register, login, create a quiz, list,
+retrieve, patch, delete, refresh, log out — with the documented `400`, `401`
+and `404` cases sitting directly below the request they belong to.
+
+The session is carried by the auth cookies out of Postman's own cookie jar, so
+no request in the collection sends an `Authorization` header. `Register` gives
+itself a fresh username, so the collection survives being run twice, and
+`Create quiz` writes the id of the new quiz into the `quiz_id` collection
+variable that retrieve, patch and delete read.
+
+Set the `video_url` variable to a real, short, spoken-word video before running
+it. Its default is the placeholder URL out of the endpoint documentation, which
+passes URL validation and is then rejected with `400` because no such video
+exists. `Create quiz` also needs FFmpeg and a `GEMINI_API_KEY`; the other
+requests need neither.
+
 ## Performance and limits
 
 `POST /api/quizzes/` does the whole chain inside the request, so the time it
@@ -227,13 +253,46 @@ and still room for Gemini.
 
 `FFMPEG_TIMEOUT_SECONDS` is **120** for the same reason: it has to be generous
 enough for the slow machine and short enough that a hung FFmpeg cannot eat the
-whole budget. Both constants live in
-[quiz_app/constants.py](quiz_app/constants.py).
+whole budget.
 
 Raising `WHISPER_MODEL` to `small` roughly triples the transcription time, so
 about 165 seconds for a 30 minute video on the reference machine. That still
 fits, but not with much left over — lower `MAX_VIDEO_DURATION_SECONDS` along
 with it if the deployment machine is slower.
+
+### What else spends the same budget
+
+Those two are not the whole request. Four constants share the 300 second
+ceiling, and all four live in [quiz_app/constants.py](quiz_app/constants.py):
+
+| Constant | Value | What it bounds |
+|---|---|---|
+| `MAX_VIDEO_DURATION_SECONDS` | `1800` | The video length accepted at all. Read from the metadata before the download, and answered with `400` above the limit. |
+| `FFMPEG_TIMEOUT_SECONDS` | `120` | One FFmpeg run. A hung conversion is killed instead of waited out. |
+| `GEMINI_TIMEOUT_MILLISECONDS` | `120_000` | One HTTP request to Gemini — one request, not one generation. |
+| `GEMINI_RETRY_DELAY_SECONDS` | `2` | The pause before a Gemini that answered `429` or `503` is asked once more. |
+
+The last two multiply. One generation can cost up to four Gemini requests: two
+prompts, the quiz and the repair after an unusable answer, and each of them may
+be sent a second time when the service says "not now". That is 4 × 120 s of
+request timeout plus 2 × 2 s of pause, so **484 seconds** of Gemini on top of
+the local work. A generation that goes normally costs a few seconds there — the
+timeout bounds a connection that hangs, not an answer that arrives.
+
+The two ends of the range are therefore far apart:
+
+| Case | Local work | Gemini | Total |
+|---|---|---|---|
+| 30 minute video, everything answers | ~55 s | a few s | **~65 s** |
+| 30 minute video, every timeout exhausted | ~55 s | 484 s | **~539 s** |
+
+The normal case sits well inside the 300 second ceiling. The worst case does
+not, and there the browser gives up before the server does: the client sees a
+failed request instead of the `500` the server would have sent eventually.
+Reaching it takes four Gemini requests in a row that neither answer nor refuse,
+which is a hanging service rather than a busy one. Lowering
+`GEMINI_TIMEOUT_MILLISECONDS` to about `60_000` would pull even that case under
+the ceiling, at the price of cutting off a slow but working answer.
 
 ## Known limitations
 
@@ -262,6 +321,16 @@ proportion to the video length and the Whisper model size. Videos longer than
 `MAX_VIDEO_DURATION_SECONDS` are rejected with `400` rather than left to run
 into a timeout; see [Performance and limits](#performance-and-limits) for the
 measurements behind that number.
+
+**A `503` comes from Google, not from this backend.** `GEMINI_MODEL` picks the
+model that is asked, and its default is `gemini-3.5-flash-lite` rather than the
+full `gemini-3.5-flash`. The full model answered `503 UNAVAILABLE` — "This
+model is currently experiencing high demand" — on run after run, and the single
+retry described below is built for a spike, not for sustained saturation. The
+lite variant is under less contention and answers. Nothing about that status
+code originates here: it is the Gemini API refusing the request, and no setting
+in this project makes a saturated model available. Set `GEMINI_MODEL` in `.env`
+to ask for a different one.
 
 **A busy Gemini is asked once more, and then gives up.** The API answers `503`
 when the model is under load and `429` when the quota is momentarily
