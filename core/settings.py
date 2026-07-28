@@ -144,7 +144,34 @@ USE_TZ = True
 STATIC_URL = "static/"
 
 
-# Cross-origin requests
+LOG_FORMAT = "{asctime} {levelname} {name} {message}"
+
+LOG_LEVEL = "INFO"
+
+CONSOLE_HANDLER = "console"
+
+PROJECT_FORMATTER = "project"
+
+PROJECT_LOGGER = {"handlers": [CONSOLE_HANDLER], "level": LOG_LEVEL}
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        PROJECT_FORMATTER: {"format": LOG_FORMAT, "style": "{"},
+    },
+    "handlers": {
+        CONSOLE_HANDLER: {
+            "class": "logging.StreamHandler",
+            "formatter": PROJECT_FORMATTER,
+        },
+    },
+    "loggers": {
+        "auth_app": PROJECT_LOGGER,
+        "quiz_app": PROJECT_LOGGER,
+    },
+}
+
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -164,8 +191,6 @@ REST_FRAMEWORK = {
     ],
 }
 
-
-# JSON Web Tokens
 
 ACCESS_TOKEN_LIFETIME_MINUTES = 60
 
