@@ -21,6 +21,7 @@ Sortiert nach dem Datum der Entscheidung, nicht nach Thema.
 9. [2026-07-27 — Fehlender GEMINI_API_KEY bricht den Start nicht ab](#2026-07-27--fehlender-gemini_api_key-bricht-den-start-nicht-ab)
 10. [2026-07-27 — Ein Video ohne Sprache wird mit 400 beantwortet](#2026-07-27--ein-video-ohne-sprache-wird-mit-400-beantwortet)
 11. [2026-07-27 — questions\[\] führt created_at und updated_at in allen Antworten](#2026-07-27--questions-führt-created_at-und-updated_at-in-allen-antworten)
+12. [2026-07-28 — Gemini Flash-Lite statt des vollen Flash-Modells](#2026-07-28--gemini-flash-lite-statt-des-vollen-flash-modells)
 
 ---
 
@@ -232,3 +233,23 @@ Serializer, nach Action geschaltet; er kauft nichts als Wörtlichkeit und
 dupliziert die Felddefinition. Rückbau: einen zweiten Serializer ohne die
 beiden Zeitstempel anlegen und ihn in `get_serializer_class()` für list,
 retrieve und partial_update wählen.
+
+---
+
+## 2026-07-28 — Gemini Flash-Lite statt des vollen Flash-Modells
+
+Die Quizly-Checkliste (liegt lokal, nicht im Repo) schreibt vor: „Um ein
+Quiz zu erstellen, nutze die KI Gemini Flash. Die Verwendung dieser Flash
+Variante ist kostenlos." Der Default in `core/settings.py` ist
+`gemini-3.5-flash-lite` und nicht `gemini-3.5-flash`. Grund: Das volle
+Flash-Modell beantwortete mehrere echte Läufe hintereinander mit
+`503 UNAVAILABLE` und der Meldung „This model is currently experiencing
+high demand"; der in Runde 7 ergänzte Transport-Retry fängt eine kurze
+Lastspitze ab, nicht eine anhaltende Auslastung. Flash-Lite gehört
+derselben Modellfamilie an, ist ebenfalls kostenlos und lieferte im Test
+zehn Fragen mit je vier Optionen und wörtlich aus den Optionen
+übernommener Antwort. Die Vorgabe „Flash" ist damit dem Sinn nach erfüllt,
+dem Wortlaut nach nur, wenn man Flash-Lite als Variante von Flash liest.
+Der Wert ist über die Umgebungsvariable `GEMINI_MODEL` umstellbar.
+Rückbau: `GEMINI_MODEL=gemini-3.5-flash` setzen, sobald die Auslastung des
+vollen Modells das zulässt.

@@ -194,6 +194,24 @@ access, without an API key and without downloading model weights.
 `coverage report` enforces a minimum total configured in
 [pyproject.toml](pyproject.toml) and exits non-zero below it.
 
+### Logging
+
+The project logs to the console — no log file is written, and there is nothing
+to clean up or exclude from git. Every record carries a timestamp, its level
+and the logger it came from:
+
+```
+2026-07-28 17:38:46,007 ERROR quiz_app.api.views Quiz generation failed for https://www.youtube.com/watch?v=probe: probe error
+```
+
+`auth_app` and `quiz_app` log from `INFO` upwards; Django's own loggers keep
+the configuration Django ships with. **This is where the cause of a `500` from
+`POST /api/quizzes/` appears.** The response says only that the quiz could not
+be generated, and the delivered frontend shows only "Error generating quiz", so
+the log line naming the failed step — the download, FFmpeg, Whisper or Gemini —
+is the only diagnosis there is. Failures the client caused are logged at
+`WARNING` with the same template, one level below the server faults.
+
 ### Postman
 
 A collection covering every documented endpoint lives at
@@ -269,13 +287,13 @@ ceiling, and all four live in [quiz_app/constants.py](quiz_app/constants.py):
 |---|---|---|
 | `MAX_VIDEO_DURATION_SECONDS` | `1800` | The video length accepted at all. Read from the metadata before the download, and answered with `400` above the limit. |
 | `FFMPEG_TIMEOUT_SECONDS` | `120` | One FFmpeg run. A hung conversion is killed instead of waited out. |
-| `GEMINI_TIMEOUT_MILLISECONDS` | `120_000` | One HTTP request to Gemini — one request, not one generation. |
+| `GEMINI_TIMEOUT_MILLISECONDS` | `60_000` | One HTTP request to Gemini — one request, not one generation. |
 | `GEMINI_RETRY_DELAY_SECONDS` | `2` | The pause before a Gemini that answered `429` or `503` is asked once more. |
 
 The last two multiply. One generation can cost up to four Gemini requests: two
 prompts, the quiz and the repair after an unusable answer, and each of them may
-be sent a second time when the service says "not now". That is 4 × 120 s of
-request timeout plus 2 × 2 s of pause, so **484 seconds** of Gemini on top of
+be sent a second time when the service says "not now". That is 4 × 60 s of
+request timeout plus 2 × 2 s of pause, so **244 seconds** of Gemini on top of
 the local work. A generation that goes normally costs a few seconds there — the
 timeout bounds a connection that hangs, not an answer that arrives.
 
@@ -284,15 +302,17 @@ The two ends of the range are therefore far apart:
 | Case | Local work | Gemini | Total |
 |---|---|---|---|
 | 30 minute video, everything answers | ~55 s | a few s | **~65 s** |
-| 30 minute video, every timeout exhausted | ~55 s | 484 s | **~539 s** |
+| 30 minute video, every timeout exhausted | ~55 s | 244 s | **~299 s** |
 
-The normal case sits well inside the 300 second ceiling. The worst case does
-not, and there the browser gives up before the server does: the client sees a
-failed request instead of the `500` the server would have sent eventually.
-Reaching it takes four Gemini requests in a row that neither answer nor refuse,
-which is a hanging service rather than a busy one. Lowering
-`GEMINI_TIMEOUT_MILLISECONDS` to about `60_000` would pull even that case under
-the ceiling, at the price of cutting off a slow but working answer.
+Both ends now sit inside the 300 second ceiling — the worst case only just, and
+only for the longest video the API accepts. Reaching it takes four Gemini
+requests in a row that neither answer nor refuse, which is a hanging service
+rather than a busy one. `GEMINI_TIMEOUT_MILLISECONDS` is `60_000` for exactly
+that reason: at the earlier `120_000` the same case came to **539 seconds** and
+the browser gave up before the server did, so the client saw a failed request
+instead of the `500` the server would have sent eventually. Observed Gemini
+calls answer in 5 to 20 seconds, so the shorter timeout only ever cuts off an
+answer that was unlikely to arrive.
 
 ## Known limitations
 
@@ -330,7 +350,8 @@ retry described below is built for a spike, not for sustained saturation. The
 lite variant is under less contention and answers. Nothing about that status
 code originates here: it is the Gemini API refusing the request, and no setting
 in this project makes a saturated model available. Set `GEMINI_MODEL` in `.env`
-to ask for a different one.
+to ask for a different one. Why the default is not the full model, and what it
+would take to go back to it, is recorded in [DEVIATIONS.md](DEVIATIONS.md).
 
 **A busy Gemini is asked once more, and then gives up.** The API answers `503`
 when the model is under load and `429` when the quota is momentarily
@@ -342,7 +363,8 @@ answers `500`, and it does so *after* the download, the conversion and the
 transcription have already run: the client waits for the whole pipeline before
 learning that the last step failed, and a retry repeats all of that work. The
 real cause is in the log — the delivered frontend shows only "Error generating
-quiz".
+quiz". See [Logging](#logging) for where that line lands and what it looks
+like.
 
 **A video without speech is rejected with `400`, not `500`.** Whisper returns
 an empty transcript for a silent or music-only video. That is a property of
