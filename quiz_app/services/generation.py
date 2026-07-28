@@ -20,6 +20,7 @@ import logging
 from django.db import transaction
 
 from ..api.serializers import GeneratedQuizSerializer
+from ..constants import INVALID_URL_MESSAGE
 from ..models import Question, Quiz
 from ..utils import normalize_youtube_url, parse_json_response
 from .exceptions import InvalidVideoError, QuizContentError
@@ -29,11 +30,6 @@ from .transcription import transcribe_audio
 from .youtube import prepared_audio
 
 LOGGER = logging.getLogger(__name__)
-
-INVALID_URL_MESSAGE = (
-    "This is not a YouTube video URL. Use a link of the form "
-    "https://www.youtube.com/watch?v=<id>."
-)
 
 UNUSABLE_OUTPUT_MESSAGE = (
     "The quiz service did not return a usable quiz for this video."

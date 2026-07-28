@@ -30,7 +30,11 @@ question wrong, silently and with no error anywhere.
 
 from rest_framework import serializers
 
-from ..constants import OPTIONS_PER_QUESTION, QUESTIONS_PER_QUIZ
+from ..constants import (
+    INVALID_URL_MESSAGE,
+    OPTIONS_PER_QUESTION,
+    QUESTIONS_PER_QUIZ,
+)
 from ..models import Question, Quiz
 from ..utils import normalize_youtube_url
 
@@ -46,11 +50,6 @@ DUPLICATE_OPTIONS_MESSAGE = (
 
 UNKNOWN_ANSWER_MESSAGE = (
     "The answer has to be one of the options of its own question."
-)
-
-INVALID_URL_MESSAGE = (
-    "This is not a YouTube video URL. Use a link of the form "
-    "https://www.youtube.com/watch?v=<id>."
 )
 
 
