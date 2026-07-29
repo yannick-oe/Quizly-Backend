@@ -69,8 +69,15 @@ class DownloadAudioTests(WorkingDirectoryTestCase):
         failure = DownloadError("Requested format is not available")
         with mock.patch(YOUTUBE_DL_TARGET) as youtube_dl:
             downloader_of(youtube_dl).download.side_effect = failure
-            with self.assertRaises(InvalidVideoError):
+            with (
+                self.assertLogs(YOUTUBE_LOGGER, level="INFO") as logs,
+                self.assertRaises(InvalidVideoError),
+            ):
                 youtube.download_audio(VIDEO_URL, self.work_dir)
+        record = logs.records[0]
+        self.assertEqual(record.levelname, "INFO")
+        self.assertEqual(record.name, YOUTUBE_LOGGER)
+        self.assertIn(VIDEO_URL, record.getMessage())
 
     def test_a_download_without_a_file_is_rejected(self):
         """A silent download that wrote nothing is refused."""

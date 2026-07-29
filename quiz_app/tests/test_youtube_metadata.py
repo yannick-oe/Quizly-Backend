@@ -18,6 +18,7 @@ from .helpers import (
     DOWNLOAD_AUDIO_TARGET,
     VIDEO_URL,
     YOUTUBE_DL_TARGET,
+    YOUTUBE_LOGGER,
     downloader_of,
     video_metadata,
 )
@@ -47,8 +48,15 @@ class FetchVideoMetadataTests(SimpleTestCase):
         failure = DownloadError("Video unavailable")
         with mock.patch(YOUTUBE_DL_TARGET) as youtube_dl:
             downloader_of(youtube_dl).extract_info.side_effect = failure
-            with self.assertRaises(InvalidVideoError):
+            with (
+                self.assertLogs(YOUTUBE_LOGGER, level="INFO") as logs,
+                self.assertRaises(InvalidVideoError),
+            ):
                 youtube.fetch_video_metadata(VIDEO_URL)
+        record = logs.records[0]
+        self.assertEqual(record.levelname, "INFO")
+        self.assertEqual(record.name, YOUTUBE_LOGGER)
+        self.assertIn(VIDEO_URL, record.getMessage())
 
     def test_metadata_without_content_is_rejected(self):
         """An empty answer from yt_dlp is refused, not passed on."""
