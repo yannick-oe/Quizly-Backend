@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Quizly Backend API",
-    "description": "Every documented Quizly endpoint, in an order that runs from top to bottom: register, login, create a quiz, list, retrieve, patch, delete, refresh the token, log out. The documented failure cases sit directly below the request they belong to.\n\nAuthentication is carried by HttpOnly cookies. Postman keeps them in its cookie jar for 127.0.0.1 and attaches them by itself, so no request in this collection sends an Authorization header. Nothing to copy, nothing to paste.\n\nBefore the first run:\n\n1. Start the server with `python manage.py runserver`.\n2. Set the collection variable `video_url` to a real, short, spoken-word YouTube video. The default is the placeholder URL from the endpoint documentation; it passes URL validation and is then rejected with 400 because no such video exists.\n3. `Create quiz` needs FFmpeg on PATH and a `GEMINI_API_KEY` in `.env`, and it runs the whole pipeline inside the request. Expect it to take a while.\n\n`Register` stamps `username` and `email` with the current time, so the collection can be run again without colliding with the account of the previous run. `Create quiz` writes the id of the new quiz into `quiz_id`, which is what retrieve, patch and delete read.",
+    "description": "Every documented Quizly endpoint, in an order that runs from top to bottom: register, login, create a quiz, list, retrieve, patch, delete, refresh the token, log out. The documented failure cases sit directly below the request they belong to.\n\nAuthentication is carried by HttpOnly cookies. Postman keeps them in its cookie jar for 127.0.0.1 and attaches them by itself, so no request in this collection sends an Authorization header. Nothing to copy, nothing to paste.\n\nBefore the first run:\n\n1. Start the server with `python manage.py runserver`.\n2. Set the collection variable `video_url` to a real, short, spoken-word YouTube video. The default is the placeholder URL from the endpoint documentation; it passes URL validation and is then rejected with 400 because no such video exists.\n3. `Create quiz` needs FFmpeg on PATH and a `GEMINI_API_KEY` in `.env`, and it runs the whole pipeline inside the request. Expect it to take a while.\n\n`Register` stamps `username` and `email` with the current time, so the collection can be run again without colliding with the account of the previous run. `Create quiz` writes the id of the new quiz into `quiz_id`, which is what retrieve, patch and delete read.\n\nThe 403 needs a quiz somebody else owns, and there is only one cookie jar. `Register second user` and `Login as second user` therefore take the jar over for exactly one request, and `Login as first user again` hands it straight back, so that update, delete, refresh and logout still run as the owner of `quiz_id`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -28,6 +28,24 @@
       "value": "quizly.demo@example.com",
       "type": "string",
       "description": "Overwritten by the Register request with a unique value."
+    },
+    {
+      "key": "other_username",
+      "value": "quizly_other_demo",
+      "type": "string",
+      "description": "Overwritten by Register second user with a unique value."
+    },
+    {
+      "key": "other_password",
+      "value": "quizly-other-password",
+      "type": "string",
+      "description": "Used by Register second user and Login as second user."
+    },
+    {
+      "key": "other_email",
+      "value": "quizly.other@example.com",
+      "type": "string",
+      "description": "Overwritten by Register second user with a unique value."
     },
     {
       "key": "video_url",
@@ -373,6 +391,179 @@
           "path": ["quizzes", "{{missing_quiz_id}}", ""]
         },
         "description": "An id that belongs to no quiz at all. Not to be confused with the 403 a quiz of another user answers."
+      },
+      "response": []
+    },
+    {
+      "name": "Register second user",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const stamp = Date.now();",
+              "pm.collectionVariables.set('other_username', 'quizly_other_' + stamp);",
+              "pm.collectionVariables.set('other_email', 'quizly_other_' + stamp + '@example.com');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "pm.test('Answers with the documented message', function () {",
+              "    pm.expect(pm.response.json().detail).to.eql('User created successfully!');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{other_username}}\",\n  \"password\": \"{{other_password}}\",\n  \"confirmed_password\": \"{{other_password}}\",\n  \"email\": \"{{other_email}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/register/",
+          "host": ["{{base_url}}"],
+          "path": ["register", ""]
+        },
+        "description": "The 403 further below needs a second account to ask with. Registration hands out no cookies, so the session of the first user survives this request untouched."
+      },
+      "response": []
+    },
+    {
+      "name": "Login as second user",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Is the second user from here on', function () {",
+              "    pm.expect(pm.response.json().user.username).to.eql(pm.collectionVariables.get('other_username'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{other_username}}\",\n  \"password\": \"{{other_password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/login/",
+          "host": ["{{base_url}}"],
+          "path": ["login", ""]
+        },
+        "description": "Postman keeps one cookie jar per domain, so these cookies replace the ones of the first user. The session is handed back two requests below, before anything needs it again."
+      },
+      "response": []
+    },
+    {
+      "name": "Retrieve quiz — quiz of another user (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('403 Forbidden', function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "pm.test('Answers with detail, not a field error', function () {",
+              "    pm.expect(pm.response.json()).to.have.property('detail');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/quizzes/{{quiz_id}}/",
+          "host": ["{{base_url}}"],
+          "path": ["quizzes", "{{quiz_id}}", ""]
+        },
+        "description": "quiz_id belongs to the first user and the second user is asking. A quiz that exists but belongs to somebody else answers 403, where an id that belongs to no quiz at all answers the 404 above. PATCH and DELETE answer the same way on the same quiz."
+      },
+      "response": []
+    },
+    {
+      "name": "Login as first user again",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Is the owner of quiz_id again', function () {",
+              "    pm.expect(pm.response.json().user.username).to.eql(pm.collectionVariables.get('username'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/login/",
+          "host": ["{{base_url}}"],
+          "path": ["login", ""]
+        },
+        "description": "Puts the first user back into the cookie jar with a fresh pair of tokens. Update, delete, refresh and logout below all work on quiz_id and need its owner."
       },
       "response": []
     },

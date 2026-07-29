@@ -217,14 +217,19 @@ is the only diagnosis there is. Failures the client caused are logged at
 A collection covering every documented endpoint lives at
 [postman/Quizly.postman_collection.json](postman/Quizly.postman_collection.json).
 Import it and run it from top to bottom: register, login, create a quiz, list,
-retrieve, patch, delete, refresh, log out — with the documented `400`, `401`
-and `404` cases sitting directly below the request they belong to.
+retrieve, patch, delete, refresh, log out — with the documented `400`, `401`,
+`403` and `404` cases sitting directly below the request they belong to.
 
 The session is carried by the auth cookies out of Postman's own cookie jar, so
 no request in the collection sends an `Authorization` header. `Register` gives
 itself a fresh username, so the collection survives being run twice, and
 `Create quiz` writes the id of the new quiz into the `quiz_id` collection
 variable that retrieve, patch and delete read.
+
+The `403` needs a quiz somebody else owns, and there is only one cookie jar.
+The run therefore registers a second account and logs in as it for exactly one
+request, then logs the first user back in, so that update, delete, refresh and
+logout still run as the owner of `quiz_id`.
 
 Set the `video_url` variable to a real, short, spoken-word video before running
 it. Its default is the placeholder URL out of the endpoint documentation, which
