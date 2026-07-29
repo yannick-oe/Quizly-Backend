@@ -180,8 +180,6 @@ CORS_ALLOWED_ORIGINS = get_list_env(
 )
 
 
-# Django REST Framework
-
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "auth_app.api.authentication.CookieJWTAuthentication",
@@ -214,14 +212,10 @@ COOKIE_SAMESITE = "Lax"
 COOKIE_SECURE = get_bool_env("COOKIE_SECURE", "False")
 
 
-# Audio transcription
-
 DEFAULT_WHISPER_MODEL = "base"
 
 WHISPER_MODEL = get_env("WHISPER_MODEL", DEFAULT_WHISPER_MODEL)
 
-
-# Quiz generation
 
 GEMINI_API_KEY = get_env("GEMINI_API_KEY", "")
 
