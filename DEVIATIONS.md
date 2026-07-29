@@ -22,6 +22,7 @@ Sortiert nach dem Datum der Entscheidung, nicht nach Thema.
 10. [2026-07-27 — Ein Video ohne Sprache wird mit 400 beantwortet](#2026-07-27--ein-video-ohne-sprache-wird-mit-400-beantwortet)
 11. [2026-07-27 — questions\[\] führt created_at und updated_at in allen Antworten](#2026-07-27--questions-führt-created_at-und-updated_at-in-allen-antworten)
 12. [2026-07-28 — Gemini Flash-Lite statt des vollen Flash-Modells](#2026-07-28--gemini-flash-lite-statt-des-vollen-flash-modells)
+13. [2026-07-29 — Zwei Dateien überschreiten die 400-Zeilen-Grenze](#2026-07-29--zwei-dateien-überschreiten-die-400-zeilen-grenze)
 
 ---
 
@@ -253,3 +254,41 @@ dem Wortlaut nach nur, wenn man Flash-Lite als Variante von Flash liest.
 Der Wert ist über die Umgebungsvariable `GEMINI_MODEL` umstellbar.
 Rückbau: `GEMINI_MODEL=gemini-3.5-flash` setzen, sobald die Auslastung des
 vollen Modells das zulässt.
+
+---
+
+## 2026-07-29 — Zwei Dateien überschreiten die 400-Zeilen-Grenze
+
+Die Coding Standards (liegen lokal, nicht im Repo) verlangen unter
+„Funktions- & Dateigröße": „Jede Datei: max. 400 LOC", und die Definition
+of Done wiederholt das als „Datei ≤ 400 LOC". Zwei Dateien halten das nicht
+ein: `README.md` mit 405 Zeilen und
+`postman/Quizly.postman_collection.json` mit 544 Zeilen. Jede Python-Datei
+des Projekts bleibt darunter; die längste ist `quiz_app/tests/helpers.py`
+mit 268 Zeilen.
+
+Beim README steht die Regel gegen eine höherrangige. Die allgemeine
+Django/DRF-Checkliste (ebenfalls lokal) verlangt: „Es existiert eine
+aussagekräftige README.MD, die mindestens alles beinhaltet zum starten des
+Projektes! Sämtliche Besonderheiten sind hier aufzuführen!" Die
+Quizly-Checkliste nennt den FFmpeg-Hinweis ausdrücklich als Abgabekriterium
+(„Bitte unbedingt auch in deiner README mit angeben, dass dies eben benötigt
+wird"), und die Definition of Done verlangt zusätzlich „Laufzeit
+langlaufender Endpoints gemessen und im README genannt". Die Vorrangregel
+dieses Projekts stellt die DA-Checkliste über die Coding Standards, also
+gewinnt die Vollständigkeit. Gekürzt würde als Erstes der Abschnitt
+„Performance and limits" wegfallen — und genau den fordert die Definition of
+Done ein.
+
+Die Postman-Collection ist erzeugtes Datenformat, kein Quelltext. Ihre
+Zeilenzahl folgt aus dem JSON-Export von zwölf Requests und sinkt nur durch
+weniger Requests, nicht durch besseren Aufbau. Die 400-Zeilen-Regel steht im
+Abschnitt „Clean Code" und zielt auf Dateien, die gelesen und geändert
+werden; diese hier schreibt und liest ein Werkzeug.
+
+Abweichung: eine Prüfung, die alle Dateien des Repositories gegen die
+400-Zeilen-Grenze hält, meldet zwei Treffer. Rückbau: das README in weitere
+Markdown-Dateien neben ihm aufteilen — die Messungen und die Besonderheiten
+je in eine eigene — und aus dem README dorthin verlinken, sobald ein Leser
+die Länge als Problem meldet. Für die Collection entfällt der Rückbau: sie
+schrumpft nur, wenn Endpoints oder Fehlerfälle wegfallen.
