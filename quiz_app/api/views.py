@@ -98,11 +98,15 @@ def _failure_response(error, video_url):
 class QuizViewSet(viewsets.ModelViewSet):
     """The five documented quiz endpoints, and no sixth.
 
-    http_method_names leaves out PUT a second time. urls.py already
-    maps only the documented methods, so this is the guard that holds
-    if somebody ever puts this viewset on a router.
+    queryset declares the base every action starts from and carries
+    the prefetch; get_queryset() is what narrows it, so the two
+    cannot drift apart. http_method_names leaves out PUT a second
+    time. urls.py already maps only the documented methods, so this
+    is the guard that holds if somebody ever puts this viewset on a
+    router.
     """
 
+    queryset = Quiz.objects.prefetch_related(QUESTIONS_RELATION)
     serializer_class = QuizSerializer
     permission_classes = [IsAuthenticated & IsQuizOwner]
     http_method_names = ALLOWED_METHODS
@@ -113,8 +117,11 @@ class QuizViewSet(viewsets.ModelViewSet):
         Only the list is narrowed to the owner. The detail actions
         stay on the full queryset so that a foreign quiz can answer
         403 instead of 404; the object permission decides there.
+
+        The declared queryset is re-evaluated rather than reused, as
+        DRF does it: a class attribute is built once per process.
         """
-        queryset = Quiz.objects.prefetch_related(QUESTIONS_RELATION)
+        queryset = self.queryset.all()
         if self.action == LIST_ACTION:
             return queryset.filter(owner=self.request.user)
         return queryset
