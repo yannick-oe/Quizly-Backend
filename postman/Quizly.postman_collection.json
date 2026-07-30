@@ -349,7 +349,7 @@
               "    pm.response.to.have.status(200);",
               "});",
               "pm.test('Is the quiz that was created', function () {",
-              "    pm.expect(String(pm.response.json().id)).to.eql(pm.collectionVariables.get('quiz_id'));",
+              "    pm.expect(pm.response.json().id).to.eql(Number(pm.collectionVariables.get('quiz_id')));",
               "});"
             ]
           }
@@ -461,7 +461,7 @@
               "    pm.response.to.have.status(200);",
               "});",
               "pm.test('Is the second user from here on', function () {",
-              "    pm.expect(pm.response.json().user.username).to.eql(pm.collectionVariables.get('other_username'));",
+              "    pm.expect(pm.response.json().user.username).to.eql(String(pm.collectionVariables.get('other_username')));",
               "});"
             ]
           }
@@ -535,7 +535,7 @@
               "    pm.response.to.have.status(200);",
               "});",
               "pm.test('Is the owner of quiz_id again', function () {",
-              "    pm.expect(pm.response.json().user.username).to.eql(pm.collectionVariables.get('username'));",
+              "    pm.expect(pm.response.json().user.username).to.eql(String(pm.collectionVariables.get('username')));",
               "});"
             ]
           }
