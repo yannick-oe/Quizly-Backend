@@ -231,11 +231,10 @@ The run therefore registers a second account and logs in as it for exactly one
 request, then logs the first user back in, so that update, delete, refresh and
 logout still run as the owner of `quiz_id`.
 
-Set the `video_url` variable to a real, short, spoken-word video before running
-it. Its default is the placeholder URL out of the endpoint documentation, which
-passes URL validation and is then rejected with `400` because no such video
-exists. `Create quiz` also needs FFmpeg and a `GEMINI_API_KEY`; the other
-requests need neither.
+The `video_url` variable points at a real, short, spoken-word video, so the
+collection runs as imported. Replace it if that video ever goes away; any
+short `watch?v=` URL with speech in it will do. `Create quiz` also needs
+FFmpeg and a `GEMINI_API_KEY`; the other requests need neither.
 
 ## Performance and limits
 
