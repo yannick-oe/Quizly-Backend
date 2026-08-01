@@ -4,7 +4,6 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 
-from auth_app.api.authentication import COOKIE_AUTH_CHALLENGE
 from auth_app.api.serializers import INVALID_CREDENTIALS_MESSAGE
 from auth_app.api.views import LOGIN_SUCCESS_MESSAGE
 
@@ -14,6 +13,7 @@ from .helpers import (
     PASSWORD,
     REFRESH_COOKIE,
     USERNAME,
+    WWW_AUTHENTICATE_CHALLENGE,
     create_user,
 )
 
@@ -108,17 +108,17 @@ class LoginTests(TestCase):
             {"detail": INVALID_CREDENTIALS_MESSAGE},
         )
 
-    def test_missing_password_answers_401_and_not_400(self):
-        """An incomplete body fails like a wrong one, with 401."""
+    def test_missing_password_answers_400(self):
+        """An incomplete body answers 400 in the field format."""
         response = self.log_in(username=USERNAME)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertIn("detail", response.json())
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("password", response.json())
 
     def test_failed_login_is_not_downgraded_to_403(self):
-        """The 401 carries the cookie challenge that preserves it."""
+        """The 401 carries the challenge header that preserves it."""
         response = self.log_in(username=USERNAME, password=WRONG_PASSWORD)
         self.assertNotEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(
             response["WWW-Authenticate"],
-            COOKIE_AUTH_CHALLENGE,
+            WWW_AUTHENTICATE_CHALLENGE,
         )

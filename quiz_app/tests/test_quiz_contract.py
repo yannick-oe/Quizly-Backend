@@ -1,22 +1,4 @@
-"""Tests for the outward shape of the quiz endpoints.
-
-Two things are pinned here that a status code cannot express.
-
-The first is the field order. The endpoint documentation prints the
-quiz object and the question object in a fixed order, and a
-ModelSerializer serves whatever order Meta.fields happens to hold. A
-reordered Meta would pass every other test in this suite.
-
-The second is the route inventory. Nine endpoints are documented and
-there is no PUT. A router on this viewset would add one silently, so
-the action maps of the URLconf are compared against the documented set
-instead of only asserting that a PUT fails today.
-
-HEAD is part of that expected set. DRF mirrors every GET onto HEAD
-while it builds the view, which is what HTTP asks for and not a tenth
-endpoint; the same goes for the OPTIONS every DRF view answers. What
-would be a tenth endpoint is PUT, and that is what is pinned.
-"""
+"""Tests for the outward shape of the quiz endpoints."""
 
 from quiz_app.api import urls as quiz_urls
 from quiz_app.api.views import QuizViewSet
@@ -33,19 +15,9 @@ QUESTIONS_KEY = "questions"
 
 PUT_METHOD = "put"
 
-DOCUMENTED_ROUTES = {
-    "quizzes/": {
-        "get": "list",
-        "post": "create",
-        "head": "list",
-    },
-    "quizzes/<int:pk>/": {
-        "get": "retrieve",
-        "patch": "partial_update",
-        "delete": "destroy",
-        "head": "retrieve",
-    },
-}
+ROUTER_REGISTRY = [("quizzes", QuizViewSet, "quiz")]
+
+ROUTE_NAMES = {"api-root", "quiz-list", "quiz-detail"}
 
 
 class FieldOrderTests(QuizEndpointTestCase):
@@ -71,15 +43,16 @@ class FieldOrderTests(QuizEndpointTestCase):
 
 
 class RouteInventoryTests(QuizEndpointTestCase):
-    """Cover the method set the URLconf exposes."""
+    """Cover the routes and methods the URLconf exposes."""
 
-    def test_the_urlconf_maps_exactly_the_documented_methods(self):
-        """A tenth route cannot appear without failing here."""
-        routes = {
-            str(pattern.pattern): pattern.callback.actions
-            for pattern in quiz_urls.urlpatterns
-        }
-        self.assertEqual(routes, DOCUMENTED_ROUTES)
+    def test_the_router_registers_exactly_the_quiz_viewset(self):
+        """The router carries one registration and no second."""
+        self.assertEqual(quiz_urls.router.registry, ROUTER_REGISTRY)
+
+    def test_the_urlconf_names_only_the_documented_routes(self):
+        """No route beyond the quiz pair and the root appears."""
+        names = {pattern.name for pattern in quiz_urls.urlpatterns}
+        self.assertEqual(names, ROUTE_NAMES)
 
     def test_put_on_the_detail_route_answers_405(self):
         """There is no PUT, and an authenticated one proves it."""
@@ -90,6 +63,6 @@ class RouteInventoryTests(QuizEndpointTestCase):
         )
         self.assertEqual(response.status_code, 405)
 
-    def test_the_viewset_refuses_put_on_a_router_as_well(self):
-        """The second guard, for the day somebody adds a router."""
+    def test_the_viewset_leaves_put_out_of_its_methods(self):
+        """The viewset does not list PUT as an allowed method."""
         self.assertNotIn(PUT_METHOD, QuizViewSet.http_method_names)

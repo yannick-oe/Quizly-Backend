@@ -1,23 +1,4 @@
-"""Views for the quiz endpoints.
-
-One viewset serves all five routes. urls.py wires it through explicit
-path entries instead of a router, so the method set is exactly the
-documented one and no PUT appears behind our back.
-
-get_queryset() filters on the owner for the list action only. The
-detail actions work on the full queryset and the ownership check runs
-as an object permission, because DRF looks the object up before it
-checks object permissions: a filtered detail queryset would answer 404
-where the documentation asks for 403. See DEVIATIONS.md.
-
-POST runs the whole pipeline inside the request. Its failures arrive
-as the service layer's own exceptions and are translated here through
-one mapping rather than a chain of checks: what the client sent is a
-400, what broke on our side is a 500. Both are logged with their real
-cause first. The delivered frontend shows nothing but "Error
-generating quiz", so the log is the only diagnosis there is, and a 500
-answers with a fixed sentence rather than an internal message.
-"""
+"""Views for the quiz endpoints."""
 
 import logging
 
@@ -46,6 +27,8 @@ ALLOWED_METHODS = ("get", "post", "patch", "delete", "head", "options")
 
 LIST_ACTION = "list"
 
+CREATE_ACTION = "create"
+
 QUESTIONS_RELATION = "questions"
 
 URL_FIELD = "url"
@@ -72,21 +55,12 @@ FAILURE_LOG_TEMPLATE = "Quiz generation failed for %s: %s"
 
 
 def _detail_response(message, code):
-    """Return a one-field JSON body with a status code.
-
-    Never an empty body: the delivered frontend parses every answer
-    except the one of DELETE as JSON, whatever its status.
-    """
+    """Return a one-field JSON body with a status code."""
     return Response({DETAIL_KEY: message}, status=code)
 
 
 def _failure_response(error, video_url):
-    """Log a failed generation and answer it with its status.
-
-    A 500 answers with a fixed sentence. The message of the exception
-    can name a missing API key or a broken tool chain, and neither is
-    the client's business.
-    """
+    """Log a failed generation and answer it with its status."""
     code = FAILURE_STATUS_CODES.get(type(error), SERVER_FAILURE_CODE)
     if code == SERVER_FAILURE_CODE:
         LOGGER.error(FAILURE_LOG_TEMPLATE, video_url, error)
@@ -96,50 +70,35 @@ def _failure_response(error, video_url):
 
 
 class QuizViewSet(viewsets.ModelViewSet):
-    """The five documented quiz endpoints, and no sixth.
-
-    queryset declares the base every action starts from and carries
-    the prefetch; get_queryset() is what narrows it, so the two
-    cannot drift apart. http_method_names leaves out PUT a second
-    time. urls.py already maps only the documented methods, so this
-    is the guard that holds if somebody ever puts this viewset on a
-    router.
-    """
+    """Serve the five documented quiz endpoints."""
 
     queryset = Quiz.objects.prefetch_related(QUESTIONS_RELATION)
-    serializer_class = QuizSerializer
     permission_classes = [IsAuthenticated & IsQuizOwner]
     http_method_names = ALLOWED_METHODS
 
     def get_queryset(self):
-        """Return the quizzes the running action may reach.
-
-        Only the list is narrowed to the owner. The detail actions
-        stay on the full queryset so that a foreign quiz can answer
-        403 instead of 404; the object permission decides there.
-
-        The declared queryset is re-evaluated rather than reused, as
-        DRF does it: a class attribute is built once per process.
-        """
+        """Return the quizzes the running action may reach."""
         queryset = self.queryset.all()
         if self.action == LIST_ACTION:
             return queryset.filter(owner=self.request.user)
         return queryset
 
+    def get_serializer_class(self):
+        """Return the serializer class of the running action."""
+        if self.action == CREATE_ACTION:
+            return QuizCreateSerializer
+        return QuizSerializer
+
     def create(self, request, *args, **kwargs):
         """Generate a quiz from a URL and answer with the quiz."""
-        video_url = self._accepted_url(request)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        video_url = serializer.validated_data[URL_FIELD]
         try:
             quiz = generate_quiz(request.user, video_url)
         except QuizGenerationError as error:
             return _failure_response(error, video_url)
         return Response(
-            self.get_serializer(quiz).data,
+            QuizSerializer(quiz).data,
             status=status.HTTP_201_CREATED,
         )
-
-    def _accepted_url(self, request):
-        """Return the canonical URL the request body carries."""
-        serializer = QuizCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        return serializer.validated_data[URL_FIELD]
