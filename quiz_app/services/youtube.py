@@ -1,14 +1,4 @@
-"""Audio acquisition for the quiz pipeline.
-
-The order is metadata, then download, then conversion. The duration is
-read from the metadata first, so an overlong video and a live stream
-are both rejected before a single byte is fetched.
-
-FFmpeg is called directly instead of through a yt_dlp postprocessor.
-Only a direct call can carry the argument list and the timeout this
-project requires, and a postprocessor would hide the call where
-neither of the two applies.
-"""
+"""Audio acquisition for the quiz pipeline."""
 
 import logging
 import subprocess
@@ -103,11 +93,7 @@ def fetch_video_metadata(url):
 
 
 def check_video_duration(metadata):
-    """Reject a video without a length or above the limit.
-
-    A missing duration is what a live stream reports, and a stream
-    would keep the download running until the request times out.
-    """
+    """Reject a video without a length or above the limit."""
     duration = metadata.get(DURATION_KEY)
     if not isinstance(duration, (int, float)) or duration <= 0:
         raise InvalidVideoError(UNKNOWN_DURATION_MESSAGE)
@@ -173,11 +159,7 @@ def convert_to_wav(source_path, target_dir):
 
 @contextmanager
 def prepared_audio(url):
-    """Yield a WAV track for a video and remove it afterwards.
-
-    The path is only valid inside the with block. Its temporary
-    directory is gone once the block ends, on the error path as well.
-    """
+    """Yield a WAV track for a video and remove it afterwards."""
     check_video_duration(fetch_video_metadata(url))
     with tempfile.TemporaryDirectory() as target_dir:
         source_path = download_audio(url, target_dir)

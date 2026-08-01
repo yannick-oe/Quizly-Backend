@@ -1,30 +1,4 @@
-"""The Gemini call of the quiz pipeline.
-
-This module knows nothing about Quiz, Question or the shape of a quiz.
-It sends a prompt and answers with text; judging that text is the job
-of the serializer, and chaining the steps is the job of generation.py.
-That split is what makes the API replaceable and the tests cheap.
-
-The client is built per call rather than kept in a module variable.
-Building it costs nothing measurable, and a cached client would freeze
-the API key and the model name of the first request for the lifetime of
-the process, which override_settings could then no longer reach.
-
-A prompt is sent twice at most, and the second time only after a
-failure that says "not now": 429 when the quota is exhausted for the
-moment, 503 when the model is under load. Anything else is final. A
-refused key does not become valid on the second ask, and a rejected
-request is rejected the same way twice, so a retry there would only
-add latency to a request the client is already waiting on.
-
-That decision is made on the status code the SDK carries in its own
-APIError and never on the wording of the message, which is free text
-of the service and can change without notice.
-
-This retry is not the one in generation.py. That one asks again because
-the answer was unusable; this one asks again because there was no
-answer at all.
-"""
+"""The Gemini call of the quiz pipeline."""
 
 import logging
 import time
@@ -63,12 +37,7 @@ FAILURE_LOG_TEMPLATE = "Gemini request failed: %s"
 
 
 def build_client():
-    """Return a Gemini client for the configured API key.
-
-    The key is checked here and not at startup. The test suite has to
-    run without one, so a missing key is a warning of the system check
-    in quiz_app/checks.py and an exception at this point.
-    """
+    """Return a Gemini client for the configured API key."""
     api_key = settings.GEMINI_API_KEY
     if not api_key:
         raise MissingApiKeyError(MISSING_API_KEY_MESSAGE)
@@ -79,12 +48,7 @@ def build_client():
 
 
 def request_completion(prompt):
-    """Return the text Gemini answers a prompt with.
-
-    The SDK fails in as many ways as the network below it, from a
-    refused key to a dropped connection. Only a busy service earns a
-    second attempt; every other failure becomes a failed request.
-    """
+    """Return the text Gemini answers a prompt with."""
     client = build_client()
     try:
         response = _generate(client, prompt)
@@ -102,11 +66,7 @@ def _generate(client, prompt):
 
 
 def _generate_again(client, prompt, error):
-    """Ask a second time after a failure that may pass.
-
-    A failure that is not transient leaves as ours right here, so the
-    second call only ever happens for a service that was busy.
-    """
+    """Retry a prompt once after a transient failure."""
     if not _is_transient(error):
         raise _request_error(error) from error
     LOGGER.warning(RETRY_LOG_TEMPLATE, error)

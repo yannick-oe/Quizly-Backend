@@ -1,22 +1,4 @@
-"""The instructions Gemini is given for a quiz.
-
-A prompt is code, not a string that belongs in a view. It lives here so
-that it can be read, reviewed and changed in one place.
-
-Every number in the text is interpolated, never typed out: the counts
-come from quiz_app.constants and the title limit from the model field
-that stores it. The prompt and the serializer that judges the answer
-would otherwise drift apart, and a drift there costs a whole run.
-
-Two prompts, not one. The first asks for a quiz. The second repeats the
-request after an unusable answer and spells out the rules the first
-attempt broke, because repeating the same words rarely produces a
-different result.
-
-The transcript is put in with str.replace and not with str.format. The
-prompt shows Gemini a JSON skeleton, so it is full of braces that
-format() would read as fields of its own.
-"""
+"""The instructions Gemini is given for a quiz."""
 
 from ..constants import OPTIONS_PER_QUESTION, QUESTIONS_PER_QUIZ
 from ..models import Quiz
@@ -76,11 +58,7 @@ def build_prompt(template, transcript):
 
 
 def build_prompt_sequence(transcript):
-    """Return the prompts to try, in order, for one transcript.
-
-    Its length is the number of Gemini calls one generation can ever
-    cost: a first attempt and a repair, then the caller gives up.
-    """
+    """Return the prompts to try, in order, for one transcript."""
     return (
         build_prompt(QUIZ_PROMPT, transcript),
         build_prompt(REPAIR_PROMPT, transcript),

@@ -1,13 +1,4 @@
-"""Exceptions raised by the quiz_app service layer.
-
-Each class marks one failure of the generation pipeline. The service
-layer raises them instead of DRF exceptions so that it stays free of
-HTTP; translating them into status codes is the job of the API layer.
-
-The split follows the error classes the endpoint documentation names:
-an unusable video is the client's problem and becomes a 400, a broken
-tool chain is ours and becomes a 500.
-"""
+"""Exceptions raised by the quiz_app service layer."""
 
 
 class QuizGenerationError(Exception):
@@ -31,12 +22,7 @@ class TranscriptionError(QuizGenerationError):
 
 
 class MissingApiKeyError(QuizGenerationError):
-    """No Gemini API key is configured for this installation.
-
-    Raised where the key is needed rather than at startup. The test
-    suite has to run without a key, so the start only warns; see the
-    system check in quiz_app/checks.py.
-    """
+    """No Gemini API key is configured for this installation."""
 
 
 class GeminiRequestError(QuizGenerationError):

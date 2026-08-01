@@ -1,17 +1,4 @@
-"""Speech to text for the quiz pipeline.
-
-Loading a Whisper model costs seconds and megabytes, so the model is
-kept in memory after its first use. Its size follows the WHISPER_MODEL
-setting, and the cache is keyed by name so that a changed setting
-loads the model it names instead of returning the old one.
-
-load_transcription_model is also the seam the tests replace, which is
-what keeps the suite from downloading model weights.
-
-A transcript that stays empty is not counted as a broken tool chain.
-A video that carries no speech is a property of the input, so it leaves
-as an InvalidVideoError and the API layer answers it with a 400.
-"""
+"""Speech to text for the quiz pipeline."""
 
 import logging
 
@@ -45,12 +32,7 @@ def load_transcription_model():
 
 
 def transcribe_audio(audio_path):
-    """Return the spoken text of an audio file.
-
-    Whisper and torch fail in many ways, from a missing binary to a
-    failed allocation, and none of them is worth telling apart here.
-    Every one of them becomes a failure of this single step.
-    """
+    """Return the spoken text of an audio file."""
     model = load_transcription_model()
     try:
         result = model.transcribe(str(audio_path))

@@ -1,19 +1,4 @@
-"""The whole chain from a YouTube URL to a stored quiz.
-
-Order: normalise, fetch metadata, check the length, download, convert,
-transcribe, ask Gemini, validate, store. Nothing is written before the
-last step, so every failure before it leaves the database untouched by
-construction rather than by rollback.
-
-Gemini gets a second chance and no more. An unusable answer is retried
-once with a stricter prompt; if that one is unusable too, the run ends
-with QuizContentError. A loop over a model that keeps answering the
-same way would hold the request open until the client gives up.
-
-An unusable answer is logged before it is dropped. The delivered
-frontend shows nothing but "Error generating quiz", so the log is the
-only place where the reason survives.
-"""
+"""The whole chain from a YouTube URL to a stored quiz."""
 
 import logging
 
@@ -47,11 +32,7 @@ def generate_quiz(user, url):
 
 
 def transcribe_video(video_url):
-    """Return the spoken text of the video behind a URL.
-
-    The audio only exists inside the with block; its temporary
-    directory is gone by the time the transcript is returned.
-    """
+    """Return the spoken text of the video behind a URL."""
     with prepared_audio(video_url) as audio_path:
         return transcribe_audio(audio_path)
 
@@ -66,11 +47,7 @@ def generate_quiz_payload(transcript):
 
 
 def validated_payload(prompt):
-    """Return validated quiz data, or None when it is unusable.
-
-    Only an unusable answer becomes None. A failing request raises,
-    because retrying it with a different prompt would not help.
-    """
+    """Return validated quiz data, or None when it is unusable."""
     text = request_completion(prompt)
     try:
         data = parse_json_response(text)
