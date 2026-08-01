@@ -4,10 +4,15 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 
-from auth_app.api.authentication import COOKIE_AUTH_CHALLENGE
 from auth_app.api.views import TOKEN_REFRESH_SUCCESS_MESSAGE
 
-from .helpers import ACCESS_COOKIE, REFRESH_COOKIE, create_user, log_in
+from .helpers import (
+    ACCESS_COOKIE,
+    REFRESH_COOKIE,
+    WWW_AUTHENTICATE_CHALLENGE,
+    create_user,
+    log_in,
+)
 
 CONTRACT_DETAIL = "Token refreshed"
 
@@ -76,7 +81,10 @@ class TokenRefreshTests(TestCase):
         response = self.refresh()
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertNotEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response["WWW-Authenticate"], COOKIE_AUTH_CHALLENGE)
+        self.assertEqual(
+            response["WWW-Authenticate"],
+            WWW_AUTHENTICATE_CHALLENGE,
+        )
 
     def test_refresh_with_an_unusable_token_is_rejected(self):
         """A damaged refresh cookie answers 401."""

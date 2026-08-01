@@ -14,6 +14,8 @@ ACCESS_COOKIE = settings.ACCESS_TOKEN_COOKIE_NAME
 
 REFRESH_COOKIE = settings.REFRESH_TOKEN_COOKIE_NAME
 
+WWW_AUTHENTICATE_CHALLENGE = 'Bearer realm="api"'
+
 
 def create_user(**overrides):
     """Create the account that the tests authenticate with."""

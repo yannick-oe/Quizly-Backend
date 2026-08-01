@@ -1,12 +1,12 @@
 """Serializers for the authentication endpoints."""
 
-from django.contrib.auth import authenticate
+from django.conf import settings
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from rest_framework.exceptions import AuthenticationFailed
-from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import (
     TokenBlacklistSerializer,
+    TokenObtainPairSerializer,
     TokenRefreshSerializer,
 )
 
@@ -16,7 +16,7 @@ PASSWORD_MISMATCH_MESSAGE = "The two password fields did not match."
 
 INVALID_CREDENTIALS_MESSAGE = "Invalid username or password."
 
-MISSING_REFRESH_TOKEN_MESSAGE = "No refresh token cookie was sent."
+REFRESH_TOKEN_FIELD = "refresh"
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -30,12 +30,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
-    """Validate a registration request and create the account.
-
-    Passwords keep their surrounding whitespace, the way Django's own
-    authentication form does, so that a password survives the trip
-    from registration to login unchanged.
-    """
+    """Validate a registration request and create the account."""
 
     confirmed_password = serializers.CharField(
         write_only=True,
@@ -72,46 +67,22 @@ class RegistrationSerializer(serializers.ModelSerializer):
         return User.objects.create_user(**validated_data)
 
 
-class LoginSerializer(serializers.Serializer):
-    """Turn a username and a password into an authenticated user.
+class LoginSerializer(TokenObtainPairSerializer):
+    """Validate credentials into token data that carries the user."""
 
-    Both fields are optional at field level on purpose. A missing
-    value has to reach validate() so that it fails the same way a
-    wrong one does, with the 401 the documentation lists, instead of
-    the 400 it does not list for this endpoint.
-    """
-
-    username = serializers.CharField(required=False, allow_blank=True)
-    password = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        trim_whitespace=False,
-        write_only=True,
-    )
+    default_error_messages = {
+        "no_active_account": INVALID_CREDENTIALS_MESSAGE,
+    }
 
     def validate(self, attrs):
-        """Authenticate the credentials or fail with 401."""
-        user = authenticate(
-            request=self.context.get("request"),
-            username=attrs.get("username"),
-            password=attrs.get("password"),
-        )
-        if user is None:
-            raise AuthenticationFailed(INVALID_CREDENTIALS_MESSAGE)
-        attrs["user"] = user
-        return attrs
+        """Return the token pair with the serialized user added."""
+        data = super().validate(attrs)
+        data["user"] = UserSerializer(self.user).data
+        return data
 
 
 class LogoutSerializer(TokenBlacklistSerializer):
-    """Blacklist the refresh token that arrived in the cookie.
-
-    The delivered frontend sends Content-Type: application/json with
-    no body at all, so the view feeds the cookie value in as field
-    data. A token that is missing or already unusable does not fail
-    the logout: the documentation lists 401 for "not authenticated",
-    which the access token answers, and the response clears both
-    cookies either way.
-    """
+    """Blacklist the refresh token that arrived in the cookie."""
 
     refresh = serializers.CharField(
         required=False,
@@ -130,22 +101,13 @@ class LogoutSerializer(TokenBlacklistSerializer):
 
 
 class CookieTokenRefreshSerializer(TokenRefreshSerializer):
-    """Rotate the token pair that arrived in the refresh cookie.
+    """Rotate the token pair that arrives in the refresh cookie."""
 
-    The delivered frontend sends neither a body nor a Content-Type on
-    this request, so the view feeds the cookie value in as field data.
-    The field stays optional and a missing value fails the same way an
-    invalid one does: the documentation lists 401 for "refresh token
-    invalid or missing" and no 400 at all for this endpoint.
-    """
-
-    refresh = serializers.CharField(required=False, allow_blank=True)
+    refresh = None
 
     def validate(self, attrs):
-        """Rotate the pair or refuse the token with 401."""
-        if not attrs.get("refresh"):
-            raise InvalidToken(MISSING_REFRESH_TOKEN_MESSAGE)
-        try:
-            return super().validate(attrs)
-        except TokenError as error:
-            raise InvalidToken(error.args[0]) from error
+        """Rotate the pair after reading the token from the cookie."""
+        attrs[REFRESH_TOKEN_FIELD] = self.context["request"].COOKIES.get(
+            settings.REFRESH_TOKEN_COOKIE_NAME, ""
+        )
+        return super().validate(attrs)

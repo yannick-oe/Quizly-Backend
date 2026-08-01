@@ -5,10 +5,15 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
 
-from auth_app.api.authentication import COOKIE_AUTH_CHALLENGE
 from auth_app.api.views import LOGOUT_SUCCESS_MESSAGE
 
-from .helpers import ACCESS_COOKIE, REFRESH_COOKIE, create_user, log_in
+from .helpers import (
+    ACCESS_COOKIE,
+    REFRESH_COOKIE,
+    WWW_AUTHENTICATE_CHALLENGE,
+    create_user,
+    log_in,
+)
 
 CONTRACT_DETAIL = (
     "Log-Out successfully! All Tokens will be deleted. "
@@ -92,4 +97,7 @@ class LogoutTests(TestCase):
         response = self.log_out()
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertNotEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response["WWW-Authenticate"], COOKIE_AUTH_CHALLENGE)
+        self.assertEqual(
+            response["WWW-Authenticate"],
+            WWW_AUTHENTICATE_CHALLENGE,
+        )
