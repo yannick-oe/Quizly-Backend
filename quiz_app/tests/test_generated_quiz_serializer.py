@@ -1,14 +1,4 @@
-"""Tests for the gate the Gemini output has to pass.
-
-Nothing here touches the database or the network. The serializer is
-handed parsed data and answers valid or not, which is the whole point
-of keeping the validation out of the service and out of the view.
-
-The stripping tests are the expensive ones to get wrong. The delivered
-frontend compares the option text it read back off the page against
-answer with ===, so a single leading space marks every answer to that
-question wrong without producing an error anywhere.
-"""
+"""Tests for the gate the Gemini output has to pass."""
 
 from django.test import SimpleTestCase
 
@@ -73,7 +63,7 @@ class AcceptedQuizTests(SerializerTestCase):
 
 
 class StrippedValuesTests(SerializerTestCase):
-    """Cover the whitespace handling the frontend depends on."""
+    """Cover the stripping of every accepted string."""
 
     def test_padding_is_removed_from_every_string(self):
         """No value reaches the database with its padding."""
@@ -103,7 +93,7 @@ class StrippedValuesTests(SerializerTestCase):
 
 
 class QuestionCountTests(SerializerTestCase):
-    """Cover the count the checklist fixes at ten."""
+    """Cover the required number of questions."""
 
     def test_one_question_too_few_is_refused(self):
         """Nine questions are not a quiz."""
@@ -127,10 +117,10 @@ class QuestionCountTests(SerializerTestCase):
 
 
 class OptionCountTests(SerializerTestCase):
-    """Cover the four options the frontend can label."""
+    """Cover the required number of options."""
 
     def test_one_option_too_few_is_refused(self):
-        """Three options leave a label unused."""
+        """Three options are refused."""
         options = question_options(1)[: OPTIONS_PER_QUESTION - 1]
         self.assert_refused(
             payload_with_first_question(
@@ -139,7 +129,7 @@ class OptionCountTests(SerializerTestCase):
         )
 
     def test_one_option_too_many_is_refused(self):
-        """A fifth option has no label in the frontend."""
+        """Five options are refused."""
         options = question_options(1) + ["Option 1E"]
         self.assert_refused(
             payload_with_first_question(
@@ -148,7 +138,7 @@ class OptionCountTests(SerializerTestCase):
         )
 
     def test_a_repeated_option_is_refused(self):
-        """Two identical options make the choice ambiguous."""
+        """Two identical options are refused."""
         options = question_options(1)
         options[2] = options[0]
         self.assert_refused(
@@ -179,7 +169,7 @@ class OptionCountTests(SerializerTestCase):
 
 
 class AnswerTests(SerializerTestCase):
-    """Cover the comparison the frontend performs with ===."""
+    """Cover the rule that the answer is one of the options."""
 
     def test_an_answer_outside_the_options_is_refused(self):
         """An answer nobody can pick is refused."""
@@ -192,17 +182,17 @@ class AnswerTests(SerializerTestCase):
         self.assert_refused(payload_with_first_question(answer="A"))
 
     def test_an_answer_differing_in_case_is_refused(self):
-        """The comparison is exact, so case matters."""
+        """The answer comparison is case sensitive."""
         self.assert_refused(
             payload_with_first_question(answer=question_options(1)[0].upper())
         )
 
     def test_an_empty_answer_is_refused(self):
-        """A question without an answer cannot be scored."""
+        """An empty answer is refused."""
         self.assert_refused(payload_with_first_question(answer=""))
 
     def test_an_empty_question_title_is_refused(self):
-        """A question needs something to ask."""
+        """A blank question title is refused."""
         self.assert_refused(payload_with_first_question(question_title="   "))
 
 
@@ -218,7 +208,7 @@ class QuizFieldTests(SerializerTestCase):
         self.assert_refused(quiz_payload(title="   "))
 
     def test_one_character_over_the_title_limit_is_refused(self):
-        """The model field would truncate or fail on this one."""
+        """A title over the limit is refused."""
         self.assert_refused(quiz_payload(title="T" * (TITLE_MAX_LENGTH + 1)))
 
     def test_an_empty_description_is_refused(self):
@@ -226,5 +216,5 @@ class QuizFieldTests(SerializerTestCase):
         self.assert_refused(quiz_payload(description=""))
 
     def test_a_list_instead_of_an_object_is_refused(self):
-        """A wrong top-level type is refused, not crashed on."""
+        """A wrong top-level type is refused."""
         self.assert_refused([quiz_payload()])

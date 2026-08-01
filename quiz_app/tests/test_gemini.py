@@ -1,16 +1,4 @@
-"""Tests for the Gemini call of the quiz pipeline.
-
-google.genai.Client is replaced in every test through
-quiz_app.services.gemini.genai.Client. No test builds a real client,
-so nothing here opens a socket or needs an API key, and the key the
-tests do configure is a string that never leaves the process.
-
-The retry tests count calls instead of only checking the outcome. One
-extra attempt for a busy service is the contract, so "it gave up too
-early", "it kept asking" and "it retried something final" all have to
-fail here rather than in production. time.sleep is replaced as well,
-because a suite that really waits is a suite nobody runs.
-"""
+"""Tests for the Gemini call of the quiz pipeline."""
 
 from unittest import mock
 
@@ -123,7 +111,7 @@ class RequestCompletionTests(GeminiTestCase):
         self.generate.assert_not_called()
 
     def test_an_empty_answer_is_refused(self):
-        """An answer of whitespace is not an answer."""
+        """An answer of only whitespace is refused."""
         self.generate.return_value = gemini_response("   \n")
         with self.assertRaises(GeminiRequestError):
             gemini.request_completion(PROMPT)
@@ -135,7 +123,7 @@ class RequestCompletionTests(GeminiTestCase):
             gemini.request_completion(PROMPT)
 
     def test_a_response_object_without_a_text_field_is_refused(self):
-        """A shape the SDK never promised does not crash the call."""
+        """A response without a text attribute is refused."""
         self.generate.return_value = object()
         with self.assertRaises(GeminiRequestError):
             gemini.request_completion(PROMPT)
@@ -157,7 +145,7 @@ class TransientRetryTests(GeminiTestCase):
         ]
 
     def test_a_busy_model_is_asked_a_second_time(self):
-        """A 503 is the failure that motivated this retry."""
+        """A 503 answer is asked a second time."""
         self.busy_then_answer(BUSY_STATUS_CODE)
         with self.assertLogs(GEMINI_LOGGER, level="WARNING"):
             answer = gemini.request_completion(PROMPT)
@@ -165,21 +153,21 @@ class TransientRetryTests(GeminiTestCase):
         self.assertEqual(self.generate.call_count, 2)
 
     def test_an_exhausted_quota_is_asked_a_second_time(self):
-        """A 429 says the limit is momentary, not permanent."""
+        """A 429 answer is asked a second time."""
         self.busy_then_answer(QUOTA_STATUS_CODE)
         with self.assertLogs(GEMINI_LOGGER, level="WARNING"):
             gemini.request_completion(PROMPT)
         self.assertEqual(self.generate.call_count, 2)
 
     def test_the_second_attempt_waits_first(self):
-        """Asking again without a pause would meet the same load."""
+        """The retry sleeps before it asks again."""
         self.busy_then_answer(BUSY_STATUS_CODE)
         with self.assertLogs(GEMINI_LOGGER, level="WARNING"):
             gemini.request_completion(PROMPT)
         self.sleep.assert_called_once_with(GEMINI_RETRY_DELAY_SECONDS)
 
     def test_the_second_attempt_repeats_the_same_request(self):
-        """The retry asks for the same thing, not for something new."""
+        """The retry repeats the identical request."""
         self.busy_then_answer(BUSY_STATUS_CODE)
         with self.assertLogs(GEMINI_LOGGER, level="WARNING"):
             gemini.request_completion(PROMPT)
@@ -187,7 +175,7 @@ class TransientRetryTests(GeminiTestCase):
         self.assertEqual(first, second)
 
     def test_two_busy_answers_give_up(self):
-        """The retry is one extra attempt, not a loop."""
+        """Two transient failures end the request."""
         self.generate.side_effect = api_error(BUSY_STATUS_CODE, "UNAVAILABLE")
         with (
             self.assertLogs(GEMINI_LOGGER, level="WARNING"),
@@ -197,7 +185,7 @@ class TransientRetryTests(GeminiTestCase):
         self.assertEqual(self.generate.call_count, 2)
 
     def test_a_rejected_request_is_not_retried(self):
-        """A refused key or a bad request fails the same way twice."""
+        """A 400 answer fails without a second attempt."""
         self.generate.side_effect = api_error(
             REJECTED_STATUS_CODE, "INVALID_ARGUMENT"
         )
@@ -220,6 +208,6 @@ class TransientRetryTests(GeminiTestCase):
         self.assertEqual(self.generate.call_count, 1)
 
     def test_an_answered_request_never_waits(self):
-        """The pause belongs to the retry and to nothing else."""
+        """A request answered at once never sleeps."""
         gemini.request_completion(PROMPT)
         self.sleep.assert_not_called()

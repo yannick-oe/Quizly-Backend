@@ -1,12 +1,4 @@
-"""Tests for GET /api/quizzes/{id}/.
-
-The three refusals are asserted separately and on purpose. The
-endpoint documentation lists 401, 403 and 404 as three different
-cases, and the 403 is the one that only survives because the detail
-queryset is not filtered on the owner. A refactor that filters it
-would turn the 403 into a 404 without breaking anything else, so that
-distinction is checked here rather than assumed.
-"""
+"""Tests for GET /api/quizzes/{id}/."""
 
 from quiz_app.constants import QUESTIONS_PER_QUIZ
 
@@ -35,13 +27,13 @@ class QuizDetailTests(QuizEndpointTestCase):
         self.assertEqual(self.get_detail(self.quiz.pk).status_code, 200)
 
     def test_the_answer_carries_the_quiz_and_its_questions(self):
-        """The documented body holds the details and the questions."""
+        """The body holds the quiz and its questions."""
         body = self.get_detail(self.quiz.pk).json()
         self.assertEqual(body["title"], QUIZ_TITLE)
         self.assertEqual(len(body[QUESTIONS_KEY]), QUESTIONS_PER_QUIZ)
 
     def test_the_answer_names_no_owner(self):
-        """The documented quiz object has no user reference."""
+        """The answered quiz names no owner."""
         self.assertNotIn(OWNER_FIELD, self.get_detail(self.quiz.pk).json())
 
     def test_a_foreign_quiz_answers_403_and_not_404(self):
@@ -55,10 +47,10 @@ class QuizDetailTests(QuizEndpointTestCase):
         self.assertNotIn("title", body)
 
     def test_an_unknown_id_answers_404(self):
-        """A quiz that does not exist is the other documented case."""
+        """An unknown id answers with 404."""
         self.assertEqual(self.get_detail(MISSING_QUIZ_ID).status_code, 404)
 
     def test_an_unauthenticated_request_answers_401(self):
-        """Without the access cookie the answer is 401, not 403."""
+        """Without the access cookie the answer is 401."""
         response = self.get_detail(self.quiz.pk, anonymous_client())
         self.assertEqual(response.status_code, 401)

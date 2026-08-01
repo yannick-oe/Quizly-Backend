@@ -1,9 +1,4 @@
-"""Tests for the download and conversion steps of the audio service.
-
-subprocess.run is replaced in every test that reaches the conversion,
-so no FFmpeg process is ever started. The shape of the call is asserted
-instead: an argument list, a timeout, and no shell.
-"""
+"""Tests for the download and conversion steps of the audio service."""
 
 import subprocess
 import tempfile

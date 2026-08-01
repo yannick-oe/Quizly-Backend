@@ -1,16 +1,4 @@
-"""Tests for POST /api/quizzes/.
-
-generate_quiz is replaced where the view imports it, so no test here
-downloads, transcribes or asks Gemini anything. The stand-in stores a
-real quiz for the user and the URL it is handed, which is what lets
-these tests check that the owner comes from the request and not from
-the body.
-
-The failure tests are the point of the module. The endpoint
-documentation names 400 and 500 for this route, the service layer
-raises seven different exceptions, and which of them lands in which
-class is a decision that has to stay visible.
-"""
+"""Tests for POST /api/quizzes/."""
 
 from unittest import mock
 
@@ -83,12 +71,12 @@ class HappyPathTests(QuizCreateTestCase):
     """Cover the run that answers with a finished quiz."""
 
     def test_a_generated_quiz_is_answered_with_201(self):
-        """The documented success code is 201, not 200."""
+        """A finished run answers with 201."""
         response = self.post({URL_FIELD: VIDEO_URL})
         self.assertEqual(response.status_code, 201)
 
     def test_the_answer_carries_the_whole_quiz(self):
-        """The documentation shows the finished quiz in the body."""
+        """The body carries the finished quiz."""
         body = self.post({URL_FIELD: VIDEO_URL}).json()
         self.assertEqual(body["video_url"], VIDEO_URL)
         self.assertEqual(len(body[QUESTIONS_KEY]), QUESTIONS_PER_QUIZ)
@@ -104,11 +92,11 @@ class HappyPathTests(QuizCreateTestCase):
         self.assertEqual(Quiz.objects.get(pk=quiz_id).owner, self.user)
 
     def test_the_answer_names_no_owner(self):
-        """The documented quiz object has no user reference."""
+        """The answered quiz names no owner."""
         self.assertNotIn(OWNER_FIELD, self.post({URL_FIELD: VIDEO_URL}).json())
 
     def test_a_short_link_reaches_the_service_in_watch_form(self):
-        """The frontend needs the v= form to embed the video."""
+        """A short link is handed over as a watch URL."""
         self.post({URL_FIELD: SHORT_LINK})
         self.generate.assert_called_once_with(self.user, VIDEO_URL)
 
@@ -135,7 +123,7 @@ class RequestRejectionTests(QuizCreateTestCase):
         self.assertEqual(self.post({URL_FIELD: ""}).status_code, 400)
 
     def test_an_unauthenticated_request_answers_401(self):
-        """The route needs the access cookie, not a 403."""
+        """Without the access cookie the answer is 401."""
         response = anonymous_client().post(
             quiz_list_url(),
             data={URL_FIELD: VIDEO_URL},
@@ -156,11 +144,11 @@ class ClientFailureTests(QuizCreateTestCase):
         self.assertEqual(response.json()[DETAIL_KEY], str(error))
 
     def test_a_video_that_cannot_be_read_answers_400(self):
-        """A private or removed video is a fault of the URL."""
+        """An unreadable video answers with 400."""
         self.assert_answers_400(InvalidVideoError(SILENT_MESSAGE))
 
     def test_a_video_that_is_too_long_answers_400(self):
-        """The duration limit answers with the documented 400."""
+        """An overlong video answers with 400."""
         self.assert_answers_400(VideoTooLongError(TOO_LONG_MESSAGE))
 
     def test_a_refused_video_stores_nothing(self):
@@ -185,15 +173,15 @@ class ServerFailureTests(QuizCreateTestCase):
         return response.json()[DETAIL_KEY]
 
     def test_a_broken_conversion_answers_500(self):
-        """A failing FFmpeg is a broken tool chain, not a bad URL."""
+        """A failing conversion answers with 500."""
         self.assert_answers_500(AudioConversionError("ffmpeg is gone"))
 
     def test_a_broken_transcription_answers_500(self):
-        """Whisper failing is ours to fix, not the client's."""
+        """A failing transcription answers with 500."""
         self.assert_answers_500(TranscriptionError("whisper died"))
 
     def test_a_failed_gemini_request_answers_500(self):
-        """A quiz service that does not answer is a server fault."""
+        """A failed Gemini request answers with 500."""
         self.assert_answers_500(GeminiRequestError("no answer"))
 
     def test_unusable_gemini_output_answers_500(self):
@@ -201,7 +189,7 @@ class ServerFailureTests(QuizCreateTestCase):
         self.assert_answers_500(QuizContentError("still unusable"))
 
     def test_a_missing_api_key_answers_500(self):
-        """An unconfigured installation is not the client's fault."""
+        """A missing API key answers with 500."""
         self.assert_answers_500(MissingApiKeyError(API_KEY_MESSAGE))
 
     def test_a_500_keeps_the_internal_message_to_itself(self):

@@ -1,11 +1,4 @@
-"""Tests for GET /api/quizzes/.
-
-Two things are checked here that no status code would catch. The
-answer is a bare JSON array and not an object with a results key, so
-the type is asserted rather than only its content. And the list holds
-the quizzes of the requesting user only, which is the one place where
-the queryset is narrowed to the owner.
-"""
+"""Tests for GET /api/quizzes/."""
 
 from quiz_app.constants import QUESTIONS_PER_QUIZ
 
@@ -37,7 +30,7 @@ class QuizListTests(QuizEndpointTestCase):
         return (client or self.client).get(quiz_list_url())
 
     def test_the_list_is_answered_with_200(self):
-        """The documented success code of the collection."""
+        """The collection answers with 200."""
         self.assertEqual(self.get_list().status_code, 200)
 
     def test_the_answer_is_a_bare_array(self):
@@ -51,7 +44,7 @@ class QuizListTests(QuizEndpointTestCase):
         self.assertNotIn(FOREIGN_TITLE, titles)
 
     def test_a_listed_quiz_carries_its_questions(self):
-        """The documentation shows the list with questions in it."""
+        """A listed quiz carries its questions."""
         first = self.get_list().json()[0]
         self.assertEqual(len(first[QUESTIONS_KEY]), QUESTIONS_PER_QUIZ)
 

@@ -1,19 +1,4 @@
-"""Shared helpers for the quiz_app tests.
-
-Every external call of the generation pipeline is replaced through the
-targets named here. The suite starts no subprocess, opens no socket and
-downloads no model weights.
-
-quiz_payload() builds a model answer that passes validation unchanged.
-Every test that wants a rejected one starts from it and breaks exactly
-one rule, so what a test is about is the one line that differs.
-
-The endpoint tests share QuizEndpointTestCase. It creates two users
-with one quiz each, so "my quiz" and "somebody else's quiz" are both
-in the database of every test, and authenticates the client by setting
-the access cookie directly. Going through POST /api/login/ would make
-every quiz test depend on the login endpoint as well.
-"""
+"""Shared helpers for the quiz_app tests."""
 
 import json
 import string

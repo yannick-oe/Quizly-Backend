@@ -1,10 +1,4 @@
-"""Tests for the system checks of the quiz_app app.
-
-Both checks report a warning rather than an error, and both tests
-below insist on that level. An error would abort manage.py test on a
-machine without FFmpeg or without an API key, which is exactly the
-machine the suite has to run on.
-"""
+"""Tests for the system checks of the quiz_app app."""
 
 from unittest import mock
 

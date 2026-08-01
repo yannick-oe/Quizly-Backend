@@ -1,13 +1,4 @@
-"""Tests for the stateless helpers of the quiz_app app.
-
-The URL forms below are the ones a user can paste into the delivered
-frontend. All of them have to end up as the same watch URL, because
-that frontend extracts the video id with a regular expression on "v=".
-
-The fenced forms below are the ones a language model produces. All of
-them have to unpack to the same data, and everything that is not JSON
-has to leave as a ValueError rather than as a crash.
-"""
+"""Tests for the stateless helpers of the quiz_app app."""
 
 from django.test import SimpleTestCase
 
@@ -101,7 +92,7 @@ class NormalizeYoutubeUrlTests(SimpleTestCase):
                 self.assertIsNone(normalize_youtube_url(url))
 
     def test_the_documented_example_url_survives(self):
-        """The example URL of the endpoint documentation is kept."""
+        """A watch URL with a short id survives unchanged."""
         url = "https://www.youtube.com/watch?v=example"
         self.assertEqual(normalize_youtube_url(url), url)
 

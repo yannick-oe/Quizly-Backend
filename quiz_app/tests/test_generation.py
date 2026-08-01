@@ -1,14 +1,4 @@
-"""Tests for the chain from a YouTube URL to a stored quiz.
-
-Three seams are replaced in every test: prepared_audio for the
-download and the FFmpeg call, transcribe_audio for Whisper, and
-request_completion for Gemini. Nothing here starts a subprocess, opens
-a socket or loads a model.
-
-The retry tests count calls rather than only checking the outcome. One
-repair attempt is the contract, so both "it gave up too early" and "it
-kept asking" have to fail here rather than in production.
-"""
+"""Tests for the chain from a YouTube URL to a stored quiz."""
 
 from contextlib import contextmanager
 from unittest import mock
@@ -110,11 +100,11 @@ class HappyPathTests(GenerationTestCase):
         self.assertEqual(self.generate().owner, self.user)
 
     def test_a_short_link_is_stored_in_the_watch_form(self):
-        """The frontend needs the v= form to embed the video."""
+        """A short link is stored as a watch URL."""
         self.assertEqual(self.generate(SHORT_LINK).video_url, VIDEO_URL)
 
     def test_the_questions_carry_options_and_answer(self):
-        """A stored question holds what the frontend renders."""
+        """A stored question holds its options and answer."""
         first = self.generate().questions.first()
         self.assertEqual(first.question_options, question_options(1))
         self.assertEqual(first.answer, question_options(1)[0])
@@ -133,7 +123,7 @@ class HappyPathTests(GenerationTestCase):
         self.assertEqual(self.generate().title, QUIZ_TITLE)
 
     def test_padded_values_are_stored_stripped(self):
-        """No stored answer carries padding the frontend would see."""
+        """No stored answer keeps its padding."""
         options = question_options(1)
         self.completion.return_value = as_json(
             payload_with_first_question(answer=f"  {options[0]}  ")
@@ -219,7 +209,7 @@ class FailurePropagationTests(GenerationTestCase):
     """Cover the failures that are not worth a second attempt."""
 
     def test_a_failed_request_is_not_retried(self):
-        """A broken API answers the same way on the second call."""
+        """A failed request ends the run without a retry."""
         self.completion.side_effect = GeminiRequestError("no answer")
         with self.assertRaises(GeminiRequestError):
             self.generate()

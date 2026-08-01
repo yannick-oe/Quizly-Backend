@@ -1,11 +1,4 @@
-"""Tests for the instructions Gemini is given.
-
-Nothing external is involved: the prompts are strings, and these tests
-only read them. Their point is that the prompt and the serializer stay
-in agreement. A prompt that asks for a different number than the
-serializer accepts fails every generation run, and it fails it after
-the download and the transcription have already been paid for.
-"""
+"""Tests for the instructions Gemini is given."""
 
 from django.test import SimpleTestCase
 
@@ -69,9 +62,9 @@ class PromptContentTests(SimpleTestCase):
         self.assertIn(str(TITLE_MAX_LENGTH), prompts.RULES)
 
     def test_the_answer_rule_is_stated(self):
-        """The rule the frontend depends on is spelled out."""
+        """The rules name the exact answer requirement."""
         self.assertIn("character for character", prompts.RULES)
 
     def test_raw_json_is_asked_for(self):
-        """The fence is discouraged even though it is stripped."""
+        """The rules ask for raw JSON."""
         self.assertIn("raw JSON", prompts.RULES)

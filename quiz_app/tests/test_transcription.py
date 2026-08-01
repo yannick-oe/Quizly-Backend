@@ -1,9 +1,4 @@
-"""Tests for the transcription step of the quiz pipeline.
-
-whisper.load_model is replaced in every test. Nothing here downloads
-model weights, and the cache is emptied around each test so that the
-model is loaded on demand rather than left over from a neighbour.
-"""
+"""Tests for the transcription step of the quiz pipeline."""
 
 from unittest import mock
 

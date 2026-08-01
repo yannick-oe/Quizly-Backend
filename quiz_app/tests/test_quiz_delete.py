@@ -1,14 +1,4 @@
-"""Tests for DELETE /api/quizzes/{id}/.
-
-The questions are checked as well as the quiz. They hang off a
-cascading foreign key, so a quiz that is gone must not leave its
-questions behind, and the documentation says the deletion is
-permanent.
-
-This is the one route whose answer carries no body. The delivered
-frontend parses every other answer as JSON and handles DELETE apart,
-so the empty body is asserted here rather than taken on trust.
-"""
+"""Tests for DELETE /api/quizzes/{id}/."""
 
 from quiz_app.models import Question, Quiz
 
@@ -28,11 +18,11 @@ class QuizDeleteTests(QuizEndpointTestCase):
         return (client or self.client).delete(quiz_detail_url(quiz_id))
 
     def test_an_own_quiz_is_answered_with_204(self):
-        """The documented success code carries no content."""
+        """A deleted own quiz answers with 204."""
         self.assertEqual(self.delete(self.quiz.pk).status_code, 204)
 
     def test_the_answer_has_an_empty_body(self):
-        """204 means no body, which is what the frontend expects."""
+        """The 204 answer carries no body."""
         self.assertEqual(self.delete(self.quiz.pk).content, b"")
 
     def test_the_quiz_is_gone(self):

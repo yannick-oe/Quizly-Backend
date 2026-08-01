@@ -1,11 +1,4 @@
-"""Tests for PATCH /api/quizzes/{id}/.
-
-The delivered frontend sends title and description together on every
-keystroke, so the ordinary case is a body that repeats a value which
-did not change. It also never sends video_url or questions, but a
-client could: both are declared read-only, which makes DRF drop them
-instead of answering 400 for a field that cannot be written.
-"""
+"""Tests for PATCH /api/quizzes/{id}/."""
 
 from django.utils.dateparse import parse_datetime
 
@@ -49,13 +42,13 @@ class QuizUpdateTests(QuizEndpointTestCase):
         return self.patch(self.quiz.pk, body)
 
     def full_update(self):
-        """Send both fields the delivered frontend always sends."""
+        """Send an update for both writable fields."""
         return self.patch_own(
             {TITLE_KEY: NEW_TITLE, DESCRIPTION_KEY: NEW_DESCRIPTION}
         )
 
     def test_an_update_is_answered_with_200(self):
-        """The documented success code of a partial update."""
+        """A partial update answers with 200."""
         self.assertEqual(self.full_update().status_code, 200)
 
     def test_both_fields_are_answered_with_their_new_values(self):
@@ -78,13 +71,13 @@ class QuizUpdateTests(QuizEndpointTestCase):
         self.assertEqual(self.quiz.description, QUIZ_DESCRIPTION)
 
     def test_updated_at_moves_forward(self):
-        """The timestamp the documentation shows is a fresh one."""
+        """The answered updated_at is a fresh timestamp."""
         before = self.quiz.updated_at
         answered = parse_datetime(self.full_update().json()[UPDATED_AT_KEY])
         self.assertGreater(answered, before)
 
     def test_a_read_only_video_url_is_ignored(self):
-        """A field the contract does not write is dropped, not 400."""
+        """A read-only field is dropped, not refused."""
         response = self.patch_own({VIDEO_URL_KEY: OTHER_VIDEO_URL})
         self.assertEqual(response.status_code, 200)
         self.quiz.refresh_from_db()

@@ -1,9 +1,4 @@
-"""Tests for the metadata step of the YouTube audio service.
-
-The duration guard is the reason this step exists at all, so the tests
-below not only check that an unusable video raises, but also that no
-download was started when it does.
-"""
+"""Tests for the metadata step of the YouTube audio service."""
 
 from unittest import mock
 
