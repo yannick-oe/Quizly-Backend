@@ -1,16 +1,4 @@
-"""System checks for the quiz_app app.
-
-Quiz generation needs FFmpeg on PATH and a Gemini API key. Neither
-would surface before the first request without these checks, and both
-are reported when the project starts.
-
-Both are warnings, not errors, and both are on purpose. The coding
-standards ask for a hard failure on missing configuration, but the
-project rules also require the test suite to run without an API key
-and on a machine without FFmpeg. An error would abort manage.py test
-on exactly that machine. The strictness is moved to the point of use
-instead: a named exception when the missing piece is actually needed.
-"""
+"""System checks for the quiz_app app."""
 
 import shutil
 
@@ -47,12 +35,7 @@ API_KEY_MISSING_HINT = (
 
 
 def check_ffmpeg_available(app_configs, **kwargs):
-    """Report a warning when the FFmpeg binary is missing.
-
-    A warning and not an error on purpose. An error would abort
-    manage.py test on a machine without FFmpeg, and the test suite
-    mocks every call to it anyway.
-    """
+    """Report a warning when the FFmpeg binary is missing."""
     if shutil.which(FFMPEG_BINARY) is not None:
         return []
     return [
@@ -65,12 +48,7 @@ def check_ffmpeg_available(app_configs, **kwargs):
 
 
 def check_gemini_api_key(app_configs, **kwargs):
-    """Report a warning when no Gemini API key is configured.
-
-    A warning for the same reason as the one above: the suite mocks
-    every Gemini call and must run without a key. The hard stop sits
-    in quiz_app/services/gemini.py, where the key is needed.
-    """
+    """Report a warning when no Gemini API key is configured."""
     if settings.GEMINI_API_KEY:
         return []
     return [

@@ -1,8 +1,4 @@
-"""Writing and removal of the cookies that carry the JWT tokens.
-
-No token ever appears in a response body, so these cookies are the
-only channel through which a client receives one.
-"""
+"""Writing and removal of the cookies that carry the JWT tokens."""
 
 from django.conf import settings
 
@@ -44,12 +40,7 @@ def set_auth_cookies(response, access, refresh):
 
 
 def _delete_token_cookie(response, name):
-    """Expire one auth cookie the way it was written.
-
-    Path and SameSite have to match the values the setter used, or
-    the browser keeps the cookie it already holds and drops the
-    deletion instead.
-    """
+    """Expire one auth cookie the way it was written."""
     response.delete_cookie(
         key=name,
         path=COOKIE_PATH,

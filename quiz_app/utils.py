@@ -1,16 +1,4 @@
-"""Stateless helpers for the quiz_app app.
-
-Nothing here touches the network, the database or the filesystem.
-
-Every accepted YouTube link is answered with the same canonical watch
-form. The delivered frontend builds its embed URL from a regular
-expression on "v=" and shows a placeholder image when it finds no
-match, so a youtu.be link would otherwise cost the video player.
-
-The second helper unpacks a model answer. Language models wrap JSON in
-a Markdown code fence however often they are asked not to, so the fence
-is removed here rather than defended against in the service layer.
-"""
+"""Stateless helpers for the quiz_app app."""
 
 import json
 import re
@@ -52,11 +40,7 @@ FENCE_BODY_GROUP = "body"
 
 
 def strip_code_fences(text):
-    """Return a model answer without its Markdown code fence.
-
-    Text that carries no fence is answered stripped but unchanged, so
-    the helper is safe to run over every response.
-    """
+    """Return a model answer without its Markdown code fence."""
     stripped = (text or "").strip()
     match = CODE_FENCE_PATTERN.match(stripped)
     if match is None:
@@ -65,20 +49,12 @@ def strip_code_fences(text):
 
 
 def parse_json_response(text):
-    """Return the data a fenced or bare JSON answer carries.
-
-    Raises ValueError for everything that is not valid JSON, which is
-    the class json.loads itself raises. Nothing else escapes.
-    """
+    """Return the data a fenced or bare JSON answer carries."""
     return json.loads(strip_code_fences(text))
 
 
 def normalize_youtube_url(url):
-    """Return the canonical watch URL of a YouTube link.
-
-    Answers None for everything that does not point at a single
-    YouTube video, which is what the caller turns into a 400.
-    """
+    """Return the canonical watch URL of a YouTube link, or None."""
     video_id = extract_youtube_video_id(url)
     if video_id is None:
         return None
@@ -132,12 +108,7 @@ def _first_query_value(query, key):
 
 
 def _checked_video_id(candidate):
-    """Return a candidate id when it looks like one, else None.
-
-    The length is deliberately not checked. The endpoint documentation
-    uses watch?v=example as its example URL, and the eleven-character
-    rule real ids follow would reject the documented form.
-    """
+    """Return a candidate id when it looks like one, else None."""
     if not candidate or not VIDEO_ID_PATTERN.match(candidate):
         return None
     return candidate

@@ -1,9 +1,4 @@
-"""Database models for the quiz_app app.
-
-The models are plain data structures. Content rules such as the number
-of questions per quiz or the number of options per question live in the
-serializers, not here.
-"""
+"""Database models for the quiz_app app."""
 
 from django.conf import settings
 from django.db import models

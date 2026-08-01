@@ -1,9 +1,4 @@
-"""Admin registrations for the quiz_app app.
-
-Quizzes are editable together with their questions through an inline,
-and questions are additionally registered on their own so a single
-question can be found and edited without its quiz.
-"""
+"""Admin registrations for the quiz_app app."""
 
 from django.contrib import admin
 

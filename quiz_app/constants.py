@@ -1,29 +1,4 @@
-"""Fixed values of the quiz domain.
-
-The services, the serializers and the tests all read these values from
-here. This module is the only place they are defined.
-
-The two time limits come from a measurement rather than a guess. On the
-reference machine a 345 second video costs 10.5 seconds end to end,
-which is about 33 times realtime, so half an hour of video needs about
-55 seconds of processing before Gemini is even asked. Chrome gives a
-fetch without its own timeout roughly 300 seconds, and quiz generation
-answers inside the request, so that budget has to cover everything.
-
-The two Gemini numbers spend the rest of that budget. A model that
-answers "not now" is asked a second time after a short pause, and one
-generation sends two prompts, so the worst case is four request
-timeouts and two pauses: 244 seconds on top of the 55, which still
-fits under the 300. Real calls answer in 5 to 20 seconds, so the
-timeout bounds a connection that hangs, not an answer that arrives.
-
-The one message here is not a quantity. The same sentence refuses a
-link that is not a YouTube video twice: once in the create serializer,
-before anything is downloaded, and once at the head of the pipeline,
-which is callable on its own. The pipeline imports the serializer, so
-the serializer cannot import the pipeline; this module imports neither
-and is the only place both can read it from.
-"""
+"""Fixed values of the quiz domain."""
 
 MAX_VIDEO_DURATION_SECONDS = 1800
 
