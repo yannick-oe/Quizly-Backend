@@ -12,10 +12,6 @@ from ..utils import normalize_youtube_url
 
 TITLE_MAX_LENGTH = Quiz._meta.get_field("title").max_length
 
-QUESTION_COUNT_MESSAGE = (
-    f"A quiz needs exactly {QUESTIONS_PER_QUIZ} questions."
-)
-
 DUPLICATE_OPTIONS_MESSAGE = (
     "The options of a question have to differ from one another."
 )
@@ -110,10 +106,8 @@ class GeneratedQuizSerializer(serializers.Serializer):
 
     title = serializers.CharField(max_length=TITLE_MAX_LENGTH)
     description = serializers.CharField()
-    questions = GeneratedQuestionSerializer(many=True)
-
-    def validate_questions(self, value):
-        """Insist on exactly the number of questions asked for."""
-        if len(value) != QUESTIONS_PER_QUIZ:
-            raise serializers.ValidationError(QUESTION_COUNT_MESSAGE)
-        return value
+    questions = GeneratedQuestionSerializer(
+        many=True,
+        min_length=QUESTIONS_PER_QUIZ,
+        max_length=QUESTIONS_PER_QUIZ,
+    )

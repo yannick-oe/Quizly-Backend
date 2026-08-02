@@ -11,11 +11,10 @@ COOKIE_PATH = "/"
 
 def _set_token_cookie(response, name, token, lifetime_setting):
     """Write one auth cookie that expires with its own token."""
-    lifetime = settings.SIMPLE_JWT[lifetime_setting]
     response.set_cookie(
         key=name,
         value=token,
-        max_age=int(lifetime.total_seconds()),
+        max_age=settings.SIMPLE_JWT[lifetime_setting],
         httponly=settings.COOKIE_HTTPONLY,
         samesite=settings.COOKIE_SAMESITE,
         secure=settings.COOKIE_SECURE,

@@ -1,11 +1,9 @@
 """Views for the authentication endpoints."""
 
-from django.conf import settings
 from rest_framework import generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework_simplejwt.views import (
+    TokenBlacklistView,
     TokenObtainPairView,
     TokenRefreshView as BaseTokenRefreshView,
 )
@@ -13,7 +11,6 @@ from rest_framework_simplejwt.views import (
 from .authentication import CookieJWTAuthentication
 from .cookies import delete_auth_cookies, set_auth_cookies
 from .serializers import (
-    REFRESH_TOKEN_FIELD,
     CookieTokenRefreshSerializer,
     LoginSerializer,
     LogoutSerializer,
@@ -30,12 +27,6 @@ LOGOUT_SUCCESS_MESSAGE = (
 )
 
 TOKEN_REFRESH_SUCCESS_MESSAGE = "Token refreshed"
-
-
-def _refresh_cookie_data(request):
-    """Return the refresh cookie value as serializer input data."""
-    raw_token = request.COOKIES.get(settings.REFRESH_TOKEN_COOKIE_NAME)
-    return {REFRESH_TOKEN_FIELD: raw_token or ""}
 
 
 class RegistrationView(generics.CreateAPIView):
@@ -70,17 +61,17 @@ class LoginView(TokenObtainPairView):
         return response
 
 
-class LogoutView(APIView):
+class LogoutView(TokenBlacklistView):
     """Log a user out and invalidate the refresh token."""
 
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
+    serializer_class = LogoutSerializer
 
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         """Blacklist the refresh token and clear both cookies."""
-        serializer = LogoutSerializer(data=_refresh_cookie_data(request))
-        serializer.is_valid(raise_exception=True)
-        response = Response({"detail": LOGOUT_SUCCESS_MESSAGE})
+        response = super().post(request, *args, **kwargs)
+        response.data = {"detail": LOGOUT_SUCCESS_MESSAGE}
         delete_auth_cookies(response)
         return response
 

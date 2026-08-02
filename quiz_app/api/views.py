@@ -78,7 +78,7 @@ class QuizViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """Return the quizzes the running action may reach."""
-        queryset = self.queryset.all()
+        queryset = super().get_queryset()
         if self.action == LIST_ACTION:
             return queryset.filter(owner=self.request.user)
         return queryset

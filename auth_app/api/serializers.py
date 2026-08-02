@@ -3,6 +3,7 @@
 from django.conf import settings
 from django.contrib.auth.models import User
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import (
     TokenBlacklistSerializer,
@@ -43,15 +44,19 @@ class RegistrationSerializer(serializers.ModelSerializer):
         model = User
         fields = ("username", "password", "confirmed_password", "email")
         extra_kwargs = {
-            "email": {"required": True, "allow_blank": False},
+            "email": {
+                "required": True,
+                "allow_blank": False,
+                "validators": [
+                    UniqueValidator(
+                        queryset=User.objects.all(),
+                        message=EMAIL_TAKEN_MESSAGE,
+                        lookup="iexact",
+                    )
+                ],
+            },
             "password": {"write_only": True, "trim_whitespace": False},
         }
-
-    def validate_email(self, value):
-        """Reject an email address that is already registered."""
-        if User.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError(EMAIL_TAKEN_MESSAGE)
-        return value
 
     def validate(self, attrs):
         """Reject a request whose two passwords differ."""
@@ -84,15 +89,14 @@ class LoginSerializer(TokenObtainPairSerializer):
 class LogoutSerializer(TokenBlacklistSerializer):
     """Blacklist the refresh token that arrived in the cookie."""
 
-    refresh = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        write_only=True,
-    )
+    refresh = None
 
     def validate(self, attrs):
         """Blacklist the token and tolerate an unusable one."""
-        if not attrs.get("refresh"):
+        attrs[REFRESH_TOKEN_FIELD] = self.context["request"].COOKIES.get(
+            settings.REFRESH_TOKEN_COOKIE_NAME, ""
+        )
+        if not attrs[REFRESH_TOKEN_FIELD]:
             return {}
         try:
             return super().validate(attrs)
