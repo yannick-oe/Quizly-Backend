@@ -23,7 +23,7 @@ zitiert statt verlinkt.
 **Vorgabe:** Die Endpoint-Dokumentation führt `email` im Request-Body von POST /api/register/ ohne Regeln zu Pflicht oder Eindeutigkeit auf; die Quizly-Checkliste nennt als ungültige Eingabe ausdrücklich eine „bereits verwendete E-Mail".
 **Abweichung:** Der Registrierungs-Serializer erzwingt `email` als nicht-leeres Pflichtfeld und lehnt eine bereits vergebene Adresse auch bei abweichender Groß-/Kleinschreibung mit 400 ab. Djangos `User`-Modell allein (`blank=True`, kein Unique-Constraint) würde beides annehmen.
 **Grund:** Ohne die Prüfung gäbe es die von der Checkliste geforderte Fehlermeldung für eine bereits verwendete E-Mail nicht.
-**Rückbau:** `validate_email` und den `extra_kwargs`-Eintrag für `email` entfernen.
+**Rückbau:** Den `extra_kwargs`-Eintrag für `email` entfernen.
 
 ## 2026-07-27 — Token-Refresh schreibt beide Cookies
 
@@ -34,7 +34,7 @@ zitiert statt verlinkt.
 
 ## 2026-07-27 — Fehlender GEMINI_API_KEY bricht den Start nicht ab
 
-**Vorgabe:** Die allgemeine Django/DRF-Checkliste verlangt, dass fehlende Konfiguration den Start abbricht, statt still weiterzulaufen; für `SECRET_KEY` gilt das in diesem Projekt auch.
+**Vorgabe:** Die Coding Standards schreiben in C14 vor: „Kein Fremd-API-Key im Code. `.env` + `.env.example` mit Platzhalter. Fehlt der Key, scheitert der Start mit einer klaren Meldung statt mit einem `None` tief im Aufrufpfad."
 **Abweichung:** Ohne `GEMINI_API_KEY` oder FFmpeg startet der Server und meldet nur ein System-Check-Warning (`quiz_app.W002` bzw. `quiz_app.W001`); der Fehler zeigt sich erst als 500 beim ersten POST /api/quizzes/.
 **Grund:** Die Testsuite muss ohne API-Key, ohne Netz und ohne Modell-Download laufen; ein Startabbruch machte `manage.py test` auf genau diesen Maschinen unmöglich.
 **Rückbau:** Den Check von Warning auf Error hochstufen, sobald die Testsuite einen Platzhalter-Key in der Umgebung setzen darf.
