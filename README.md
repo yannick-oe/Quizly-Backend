@@ -42,16 +42,12 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 cp .env.example .env
+python -c "from django.core.management.utils import get_random_secret_key as k; print(k())"
+# put the printed key into .env as SECRET_KEY
 
 python manage.py migrate
 python manage.py createsuperuser
 python manage.py runserver
-```
-
-Generate the `SECRET_KEY` and put it into `.env` before running `manage.py`:
-
-```bash
-python -c "from django.core.management.utils import get_random_secret_key as k; print(k())"
 ```
 
 A missing or empty `SECRET_KEY` aborts the start with `ImproperlyConfigured`.
@@ -67,10 +63,10 @@ placeholders. `.env` itself is ignored by git and must never be committed.
 | `DEBUG` | no | `False` | Django debug mode. `True` for local development only. |
 | `ALLOWED_HOSTS` | no | `127.0.0.1,localhost` | Comma-separated hosts Django will serve. |
 | `GEMINI_API_KEY` | for quiz generation | none | Google AI Studio key for Gemini Flash. |
-| `GEMINI_MODEL` | no | `gemini-3.5-flash-lite` | Model asked for the quiz. The default is the lite variant on purpose; see [Known limitations](#known-limitations). The 2.x names are retired and answer `404`. |
+| `GEMINI_MODEL` | no | `gemini-3.5-flash-lite` | Gemini model asked for the quiz. The 2.x names are retired and answer `404`. |
 | `COOKIE_SECURE` | no | `False` | `Secure` flag on both auth cookies. `True` only behind HTTPS. |
 | `CORS_ALLOWED_ORIGINS` | no | `http://127.0.0.1:5500` | Comma-separated origins allowed to send credentials. No wildcard. |
-| `WHISPER_MODEL` | no | `base` | Whisper model size: `tiny`, `base`, `small`, `medium` or `large`. `small` is the sensible step up in transcript quality and costs roughly three times the runtime of `base`. |
+| `WHISPER_MODEL` | no | `base` | Whisper model size: `tiny`, `base`, `small`, `medium` or `large`. |
 
 Boolean variables accept `1`, `true`, `yes` or `on`, case-insensitive.
 Anything else counts as false.
@@ -106,6 +102,9 @@ no `Authorization` header.
 The API has no CSRF protection; `SameSite=Lax` on both auth cookies and the
 explicit `CORS_ALLOWED_ORIGINS` list are the countermeasures. The Django
 admin keeps its own CSRF protection.
+
+Every deliberate deviation from the endpoint documentation is recorded in
+[DEVIATIONS.md](DEVIATIONS.md), one dated entry each.
 
 ## Admin
 
@@ -148,7 +147,9 @@ here and nowhere else.
 A collection covering every endpoint lives at
 [postman/Quizly.postman_collection.json](postman/Quizly.postman_collection.json).
 Import it and run it from top to bottom. `Create quiz` needs FFmpeg and a
-`GEMINI_API_KEY`; the other requests need neither.
+`GEMINI_API_KEY`; the other requests need neither. The collection variable
+`video_url` points at a specific YouTube video; if that video is gone,
+replace the value with any short spoken-word `watch?v=` URL.
 
 ## Performance
 
