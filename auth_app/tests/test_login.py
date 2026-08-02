@@ -115,7 +115,7 @@ class LoginTests(TestCase):
         self.assertIn("password", response.json())
 
     def test_failed_login_is_not_downgraded_to_403(self):
-        """The 401 carries the challenge header that preserves it."""
+        """A failed login answers 401 with a WWW-Authenticate header."""
         response = self.log_in(username=USERNAME, password=WRONG_PASSWORD)
         self.assertNotEqual(response.status_code, status.HTTP_403_FORBIDDEN)
         self.assertEqual(

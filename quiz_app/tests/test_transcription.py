@@ -97,7 +97,7 @@ class TranscribeAudioTests(TranscriptionTestCase):
             transcription.transcribe_audio(AUDIO_PATH)
 
     def test_an_empty_transcript_blames_the_video(self):
-        """A silent video is the input's fault, not the tool chain's."""
+        """An empty transcript raises InvalidVideoError."""
         model = fake_model()
         model.transcribe.return_value = {"text": "   \n"}
         with mock.patch(LOAD_MODEL_TARGET, return_value=model):

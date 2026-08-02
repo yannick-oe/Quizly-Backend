@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Quizly Backend API",
-    "description": "Every documented Quizly endpoint, in an order that runs from top to bottom: register, login, create a quiz, list, retrieve, patch, delete, refresh the token, log out. The documented failure cases sit directly below the request they belong to.\n\nAuthentication is carried by HttpOnly cookies. Postman keeps them in its cookie jar for 127.0.0.1 and attaches them by itself, so no request in this collection sends an Authorization header. Nothing to copy, nothing to paste.\n\nBefore the first run:\n\n1. Start the server with `python manage.py runserver`.\n2. Set the collection variable `video_url` to a real, short, spoken-word YouTube video. The default is the placeholder URL from the endpoint documentation; it passes URL validation and is then rejected with 400 because no such video exists.\n3. `Create quiz` needs FFmpeg on PATH and a `GEMINI_API_KEY` in `.env`, and it runs the whole pipeline inside the request. Expect it to take a while.\n\n`Register` stamps `username` and `email` with the current time, so the collection can be run again without colliding with the account of the previous run. `Create quiz` writes the id of the new quiz into `quiz_id`, which is what retrieve, patch and delete read.\n\nThe 403 needs a quiz somebody else owns, and there is only one cookie jar. `Register second user` and `Login as second user` therefore take the jar over for exactly one request, and `Login as first user again` hands it straight back, so that update, delete, refresh and logout still run as the owner of `quiz_id`.",
+    "description": "Every documented Quizly endpoint, in an order that runs from top to bottom: register, login, create a quiz, list, retrieve, patch, delete, refresh the token, log out. The documented failure cases sit below the request they belong to.\n\nAuthentication is carried by HttpOnly cookies. Postman keeps them in its cookie jar for 127.0.0.1 and attaches them by itself, so no request in this collection sends an Authorization header.\n\nBefore the first run:\n\n1. Start the server with `python manage.py runserver`.\n2. The collection variable `video_url` points at a short spoken-word YouTube video. If that video is unavailable, replace it with any other short spoken-word watch?v= URL.\n3. `Create quiz` needs FFmpeg on PATH and a `GEMINI_API_KEY` in `.env`, and it runs the whole pipeline inside the request. Expect it to take a while.\n\n`Register` stamps `username` and `email` with the current time, so the collection can be run again without colliding with the account of the previous run. `Create quiz` writes the id of the new quiz into `quiz_id`, which is what retrieve, patch and delete read.\n\n`Register second user` and `Login as second user` switch the cookie jar to a second account for the 403 request; `Login as first user again` switches it back, so update, delete, refresh and logout run as the owner of `quiz_id`.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -51,7 +51,7 @@
       "key": "video_url",
       "value": "https://www.youtube.com/watch?v=-ch1zQ3RoH0",
       "type": "string",
-      "description": "The placeholder from the endpoint documentation. Replace it with a real short video before running Create quiz."
+      "description": "A short spoken-word YouTube video. If it is unavailable, replace it with any other short spoken-word watch?v= URL."
     },
     {
       "key": "quiz_id",
@@ -363,7 +363,7 @@
           "host": ["{{base_url}}"],
           "path": ["quizzes", "{{quiz_id}}", ""]
         },
-        "description": "A quiz that belongs to somebody else is answered with 403 rather than 404, so that both documented cases stay distinguishable."
+        "description": "Fetches the quiz created above by its id."
       },
       "response": []
     },
@@ -390,7 +390,7 @@
           "host": ["{{base_url}}"],
           "path": ["quizzes", "{{missing_quiz_id}}", ""]
         },
-        "description": "An id that belongs to no quiz at all. Not to be confused with the 403 a quiz of another user answers."
+        "description": "An id that belongs to no quiz at all answers 404."
       },
       "response": []
     },
@@ -489,7 +489,7 @@
           "host": ["{{base_url}}"],
           "path": ["login", ""]
         },
-        "description": "Postman keeps one cookie jar per domain, so these cookies replace the ones of the first user. The session is handed back two requests below, before anything needs it again."
+        "description": "Postman keeps one cookie jar per domain, so these cookies replace the ones of the first user. The session is handed back two requests below."
       },
       "response": []
     },
@@ -609,7 +609,7 @@
           "host": ["{{base_url}}"],
           "path": ["quizzes", "{{quiz_id}}", ""]
         },
-        "description": "Only title and description are writable. Everything else is read-only and is dropped instead of rejected, which is what lets the delivered frontend send the whole object back."
+        "description": "Only title and description are writable. Read-only fields sent in the body are ignored."
       },
       "response": []
     },

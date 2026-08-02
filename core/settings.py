@@ -1,8 +1,4 @@
-"""Django settings for the core project.
-
-Environment-specific values are read from the environment, with .env
-loaded on start; see .env.example for the variables this project uses.
-"""
+"""Django settings for the core project."""
 
 import os
 from datetime import timedelta

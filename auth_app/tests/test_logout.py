@@ -33,7 +33,7 @@ class LogoutTests(TestCase):
         log_in(self.client)
 
     def log_out(self):
-        """Send the body-less request the frontend sends."""
+        """Send a POST request that carries no body."""
         return self.client.generic(
             "POST",
             self.url,

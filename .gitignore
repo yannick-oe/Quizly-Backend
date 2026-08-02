@@ -23,6 +23,6 @@ htmlcov/
 .vscode/
 .idea/
 
-# Local reference material, not part of the deliverable
+# Local reference material
 docs/
 CLAUDE.md

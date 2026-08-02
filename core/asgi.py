@@ -1,8 +1,4 @@
-"""ASGI config for the core project.
-
-Exposes the ASGI callable as a module-level variable named
-``application``.
-"""
+"""ASGI config for the core project."""
 
 import os
 

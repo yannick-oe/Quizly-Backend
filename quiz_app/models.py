@@ -48,7 +48,7 @@ class Question(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        """Keep the question order stable and reproducible."""
+        """Order questions by id."""
 
         ordering = ["id"]
 

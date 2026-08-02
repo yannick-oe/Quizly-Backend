@@ -1,8 +1,4 @@
-"""WSGI config for the core project.
-
-Exposes the WSGI callable as a module-level variable named
-``application``.
-"""
+"""WSGI config for the core project."""
 
 import os
 

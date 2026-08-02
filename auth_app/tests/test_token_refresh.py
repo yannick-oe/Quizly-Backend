@@ -31,7 +31,7 @@ class TokenRefreshTests(TestCase):
         self.old_refresh = login.cookies[REFRESH_COOKIE].value
 
     def refresh(self):
-        """Send the body-less request the frontend sends."""
+        """Send a POST request that carries no body."""
         return self.client.generic("POST", self.url)
 
     def assert_auth_cookie(self, response, name):
