@@ -1,5 +1,6 @@
 """Speech to text for the quiz pipeline."""
 
+import functools
 import logging
 
 import whisper
@@ -20,15 +21,16 @@ EMPTY_TRANSCRIPT_MESSAGE = (
     "not one that is silent or music only."
 )
 
-_MODEL_CACHE = {}
+
+@functools.cache
+def _load_model(name):
+    """Load one Whisper model by name."""
+    return whisper.load_model(name)
 
 
 def load_transcription_model():
     """Return the configured Whisper model, loaded once per process."""
-    name = settings.WHISPER_MODEL
-    if name not in _MODEL_CACHE:
-        _MODEL_CACHE[name] = whisper.load_model(name)
-    return _MODEL_CACHE[name]
+    return _load_model(settings.WHISPER_MODEL)
 
 
 def transcribe_audio(audio_path):

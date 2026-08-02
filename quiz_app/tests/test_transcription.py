@@ -33,9 +33,9 @@ class TranscriptionTestCase(SimpleTestCase):
     """Start and end every test with an empty model cache."""
 
     def setUp(self):
-        """Empty the module level model cache."""
-        transcription._MODEL_CACHE.clear()
-        self.addCleanup(transcription._MODEL_CACHE.clear)
+        """Empty the cache of the model loader."""
+        transcription._load_model.cache_clear()
+        self.addCleanup(transcription._load_model.cache_clear)
 
 
 class LoadTranscriptionModelTests(TranscriptionTestCase):
